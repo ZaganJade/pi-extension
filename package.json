@@ -1,0 +1,16 @@
+{
+	"name": "pi-extension-monorepo",
+	"private": true,
+	"description": "Extensions for the pi coding agent: pi-usage (quota panel) + pi-multi-skill (multi-skill loader).",
+	"license": "MIT",
+	"author": "ZaganJade <tipstrik81@gmail.com>",
+	"homepage": "https://github.com/ZaganJade/pi-extension",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ZaganJade/pi-extension.git"
+	},
+	"workspaces": [
+		"usage",
+		"multi-skill"
+	]
+}

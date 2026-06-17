@@ -1,13 +1,27 @@
 {
-	"name": "pi-usage",
+	"name": "@zaganjade/pi-usage",
 	"version": "1.0.0",
-	"description": "Claude Code-style /usage panel for pi — shows 5H/weekly quota, cost/token breakdowns by model/skill/plugin/tool/project, and live upstream provider quotas (ZAI, OpenAI Codex).",
+	"description": "Claude Code-style /usage panel for pi — shows 5H/weekly quota, cost/token breakdowns by model/skill/plugin/tool/project, and live upstream provider quotas (ZAI, OpenAI Codex via pi AuthStorage).",
 	"keywords": [
 		"pi-package"
 	],
 	"license": "MIT",
-	"author": "ZaganJade",
+	"author": "ZaganJade <tipstrik81@gmail.com>",
+	"homepage": "https://github.com/ZaganJade/pi-extension/tree/main/usage",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ZaganJade/pi-extension.git",
+		"directory": "usage"
+	},
+	"bugs": {
+		"url": "https://github.com/ZaganJade/pi-extension/issues"
+	},
 	"main": "./src/index.ts",
+	"files": [
+		"src/",
+		"README.md",
+		"LICENSE"
+	],
 	"pi": {
 		"extensions": [
 			"./src/index.ts"
