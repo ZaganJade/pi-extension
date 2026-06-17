@@ -1,0 +1,20 @@
+{
+	"name": "pi-multi-skill",
+	"version": "1.0.0",
+	"description": "Load multiple skills at once via /skills command. Supports comma-separated skill names with autocomplete and instructions.",
+	"keywords": [
+		"pi-package"
+	],
+	"license": "MIT",
+	"author": "ZaganJade",
+	"main": "./src/index.ts",
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "*",
+		"@earendil-works/pi-tui": "*"
+	}
+}

@@ -1,0 +1,21 @@
+{
+	"name": "pi-usage",
+	"version": "1.0.0",
+	"description": "Claude Code-style /usage panel for pi — shows 5H/weekly quota, cost/token breakdowns by model/skill/plugin/tool/project, and live upstream provider quotas (ZAI, OpenAI Codex).",
+	"keywords": [
+		"pi-package"
+	],
+	"license": "MIT",
+	"author": "ZaganJade",
+	"main": "./src/index.ts",
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "*",
+		"@earendil-works/pi-ai": "*",
+		"@earendil-works/pi-tui": "*"
+	}
+}
