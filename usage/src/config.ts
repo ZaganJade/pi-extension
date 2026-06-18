@@ -8,6 +8,19 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { DEFAULT_MODEL_PRICES } from "./prices.ts";
+
+/**
+ * Manual price for a model, in USD per **million tokens**. Used to compute a
+ * cost for token-priced / proxied providers that pi records with cost 0
+ * (e.g. zai/GLM, 9Router `kr/…`, `cx/…`). Omitted fields count as 0.
+ */
+export interface ModelPrice {
+	input?: number;
+	output?: number;
+	cacheRead?: number;
+	cacheWrite?: number;
+}
 
 export interface UsageConfig {
 	/** USD budget for the rolling 5-hour window. 0/undefined disables the bar. */
@@ -24,6 +37,12 @@ export interface UsageConfig {
 	excludeProjects?: string[];
 	/** Maximum number of session files to scan (safety cap for huge histories). */
 	maxSessions?: number;
+	/**
+	 * Manual per-model prices ($/million tokens) used to fill in cost when pi
+	 * recorded none. Keyed by model ID; an entry keyed by the base name (without
+	 * a proxy prefix like `kr/`) matches all proxied variants.
+	 */
+	modelPrices?: Record<string, ModelPrice>;
 }
 
 const DEFAULTS: UsageConfig = {
@@ -34,6 +53,7 @@ const DEFAULTS: UsageConfig = {
 	showWidget: false,
 	excludeProjects: [],
 	maxSessions: 1000,
+	modelPrices: {},
 };
 
 function configPath(): string {
@@ -43,14 +63,21 @@ function configPath(): string {
 /** Load config, merged with defaults. Never throws — returns defaults on error. */
 export function loadConfig(): UsageConfig {
 	const path = configPath();
-	if (!existsSync(path)) return { ...DEFAULTS };
+	if (!existsSync(path)) {
+		return { ...DEFAULTS, modelPrices: { ...DEFAULT_MODEL_PRICES } };
+	}
 	try {
 		const raw = readFileSync(path, "utf8");
 		const parsed = JSON.parse(raw) as Partial<UsageConfig>;
-		return { ...DEFAULTS, ...parsed };
+		// Bundled prices are defaults; the user's modelPrices override per-key.
+		return {
+			...DEFAULTS,
+			...parsed,
+			modelPrices: { ...DEFAULT_MODEL_PRICES, ...(parsed.modelPrices ?? {}) },
+		};
 	} catch (err) {
 		console.error(`[usage] Failed to read ${path}: ${err}`);
-		return { ...DEFAULTS };
+		return { ...DEFAULTS, modelPrices: { ...DEFAULT_MODEL_PRICES } };
 	}
 }
 

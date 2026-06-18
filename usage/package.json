@@ -1,7 +1,7 @@
 {
 	"name": "@zaganjade/pi-usage",
-	"version": "1.0.1",
-	"description": "Claude Code-style /usage panel for pi — shows 5H/weekly quota, cost/token breakdowns by model/skill/plugin/tool/project, and live upstream provider quotas (ZAI, OpenAI Codex via pi AuthStorage).",
+	"version": "1.8.0",
+	"description": "Claude Code-style /usage panel for pi — Tokscale-style Overview / Models / Daily / Stats / Hourly / Agents / Wrapped AI views with 5H/weekly quota, cost/token breakdowns by model/skill/plugin/tool/project, a GitHub-style contribution graph, and live upstream provider quotas (ZAI, OpenAI Codex via pi AuthStorage).",
 	"keywords": [
 		"pi-package"
 	],

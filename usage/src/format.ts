@@ -109,3 +109,83 @@ export function sourceLabel(sourceInfo: {
 function trim(n: number): string {
 	return (Math.round(n * 10) / 10).toString();
 }
+
+const MONTHS = [
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec",
+];
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** Human day label from a `YYYY-MM-DD` key, e.g. "Mon Jun 17". */
+export function formatDayLabel(dateKey: string): string {
+	const [y, m, d] = dateKey.split("-").map((n) => Number.parseInt(n, 10));
+	if (!y || !m || !d) return dateKey;
+	const date = new Date(y, m - 1, d);
+	return `${WEEKDAYS[date.getDay()]} ${MONTHS[m - 1]} ${`${d}`.padStart(2, "0")}`;
+}
+
+/** Short month name for a 1-based month index (1 = Jan). */
+export function monthLabel(month1: number): string {
+	return MONTHS[(month1 - 1 + 12) % 12] ?? "";
+}
+
+const SPARK_CHARS = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+
+/** Render a unicode sparkline for a series of non-negative values. */
+export function sparkline(values: number[]): string {
+	if (values.length === 0) return "";
+	const max = Math.max(...values);
+	if (max <= 0) return SPARK_CHARS[0].repeat(values.length);
+	return values
+		.map((v) => {
+			if (v <= 0) return " ";
+			const idx = Math.min(
+				SPARK_CHARS.length - 1,
+				Math.max(0, Math.round((v / max) * (SPARK_CHARS.length - 1))),
+			);
+			return SPARK_CHARS[idx];
+		})
+		.join("");
+}
+
+/** Heatmap glyphs per intensity level (0 = empty). */
+export const HEAT_CHARS = ["·", "▪", "▩", "▣", "█"] as const;
+
+/** Format an hour-of-day (0-23) as a friendly 12-hour label, e.g. "2pm". */
+export function formatHour(h: number): string {
+	const hour = ((h % 24) + 24) % 24;
+	if (hour === 0) return "12am";
+	if (hour === 12) return "12pm";
+	return hour < 12 ? `${hour}am` : `${hour - 12}pm`;
+}
+
+/** Format an integer with thousands separators (e.g. 24086 → "24,086"). */
+export function formatInt(n: number): string {
+	if (!Number.isFinite(n)) return "0";
+	return Math.round(n).toLocaleString("en-US");
+}
+
+/** Format a duration in ms as a compact human string (e.g. "2h 14m"). */
+export function formatDuration(ms: number): string {
+	if (!Number.isFinite(ms) || ms <= 0) return "—";
+	const s = Math.round(ms / 1000);
+	if (s < 60) return `${s}s`;
+	const m = Math.floor(s / 60);
+	if (m < 60) return `${m}m`;
+	const h = Math.floor(m / 60);
+	const rm = m % 60;
+	if (h < 24) return rm ? `${h}h ${rm}m` : `${h}h`;
+	const d = Math.floor(h / 24);
+	const rh = h % 24;
+	return rh ? `${d}d ${rh}h` : `${d}d`;
+}

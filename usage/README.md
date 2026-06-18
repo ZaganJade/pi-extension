@@ -26,19 +26,47 @@ and **weekly** quota bars. Mirrors the layout and wording of Claude Code's
   …
 ```
 
+## Views
+
+The panel is organized into seven **menu views** (Tokscale-inspired, extended with
+Wrapped AI), switchable inside `/usage` and openable directly via shortcuts:
+
+| View | Shows |
+|------|-------|
+| **Overview** | Quota bars, headline stats, active-provider quota, top consumer, a 30-day trend sparkline, and the top models. |
+| **Models** | Detailed model table (↑input ↓output ⚡cache + turns), plus Skills, Plugin usage, Tools, and Projects breakdowns. |
+| **Daily** | Per-day rows with an activity bar plus exact cost, tokens, uptime (active span), and the day's top model; topped with all-time totals (uptime / tokens / cost). Sortable by date or usage. |
+| **Stats** | GitHub-style contribution graph with month labels, an interactive time-range selector (all / 7d / 30d via `a`/`w`/`m`), and a two-column summary (total, turns, active days, favorite model, current/longest streak, busiest day, peak hour, averages) plus a fun usage comparison. |
+| **Hourly** | Time-of-day breakdown (0–23h, all days combined): activity bars, tokens, turns, and top model per hour — spot your peak coding windows. |
+| **Agents** | Usage by provider/backend (e.g. `zai`, `openai-codex`, `9Router`): share bars, tokens, project count, and top model per provider. Sortable by usage or name. |
+| **Wrapped AI** | Compact year-in-review: headline totals, monthly mini-chart, top models/providers, streaks, peak hour, top project, and a one-line insight. Cycle years with `[` / `]` or `y`. |
+
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/usage` | Open the interactive usage panel. |
+| `/usage` | Open the interactive usage panel (Overview view). |
+| `/usage-models` | Open the panel directly on the **Models** view. |
+| `/usage-daily` | Open the panel directly on the **Daily** summary view. |
+| `/usage-stats` | Open the panel directly on the **Stats** (contribution graph) view. |
+| `/usage-hourly` | Open the panel directly on the **Hourly** (time-of-day) view. |
+| `/usage-agents` | Open the panel directly on the **Agents** (provider) view. |
+| `/usage-wrapped` | Open the panel directly on the **Wrapped AI** year-in-review view. |
 | `/usage-config` | Set your 5-hour and weekly USD budgets. |
+| `/usage-pricing` | Set a manual per-model price ($/M tokens) so cost shows for token-priced / proxied models pi records as $0. |
 | `/usage-widget` | Toggle a compact always-on spend widget above the editor. |
 
 ### Keys inside `/usage`
 
 | Key | Action |
 |-----|--------|
-| `5` / `d` / `w` / `a` | Switch window: 5 hours / day / week / all time |
+| `Tab` / `Shift+Tab`, `←` / `→` | Switch view (Overview ↔ … ↔ Wrapped AI) |
+| `1` `2` `3` `4` `5` `6` `7` | Jump to Overview / Models / Daily / Stats / Hourly / Agents / Wrapped |
+| `5` / `d` / `w` / `a` | On Overview & Models: switch window (5 hours / day / week / all). On other views, `5` opens **Hourly**. |
+| `a` / `w` / `m` | Stats range: all time / last 7 days / last 30 days (Stats view) |
+| `c` / `t` / `n` | Models or Agents view: sort by usage (`c`/`t`) or name (`n`) |
+| `t` / `c` / `d` | Daily view: sort by tokens / cost / date — press the same key again to flip ascending ↔ descending |
+| `[` / `]` / `y` | Wrapped AI: previous / next calendar year |
 | `j` `k` / `↑` `↓` | Scroll  •  `space`/`ctrl+d` half-page down, `ctrl+u`/`b` up |
 | `g` / `G` | Jump to top / bottom |
 | `r` | Force re-scan of sessions |
@@ -57,7 +85,11 @@ and **weekly** quota bars. Mirrors the layout and wording of Claude Code's
   "weeklyTokenLimit": 10000000,
   "showWidget": false,
   "excludeProjects": ["/tmp/throwaway"],
-  "maxSessions": 1000
+  "maxSessions": 1000,
+  "modelPrices": {
+    "claude-opus-4.7": { "input": 15, "output": 75, "cacheRead": 1.5, "cacheWrite": 18.75 },
+    "glm-5-turbo": { "input": 0.6, "output": 2.2 }
+  }
 }
 ```
 
@@ -69,6 +101,15 @@ and **weekly** quota bars. Mirrors the layout and wording of Claude Code's
 - `showWidget` — keep a one-line spend summary above the editor.
 - `excludeProjects` — cwd prefixes to skip during aggregation.
 - `maxSessions` — safety cap on how many session files to scan.
+- `modelPrices` — prices in **USD per 1M tokens** used to compute cost for
+  token-priced / proxied models that pi records with `$0` (e.g. zai/GLM, 9Router
+  `kr/…`, `cx/…`). The extension **ships with default prices** for common models
+  (`src/prices.ts`, taken from official provider pricing pages); your
+  `modelPrices` entries **override** those per key. A cost recorded by pi always
+  wins; the price table only fills gaps. Keys match the model ID exactly, or by
+  **base name** (after the last `/`) so `claude-opus-4.7` covers
+  `kr/claude-opus-4.7` and `cx/claude-opus-4.7`. Set entries interactively with
+  `/usage-pricing`. Prices are estimates — verify against your provider.
 
 ### Adaptive units
 
@@ -81,6 +122,16 @@ The quota bars, headline stats, and breakdown sections automatically switch
   real usage signal — the panel shows e.g. `1.3M / 2M (63%)` against your
   `fiveHourTokenLimit`, and the live per-minute rate-limit headers below give
   the real-time "remaining this window" from the provider.
+
+## Performance
+
+The first scan parses every session file once (can take a few seconds for large
+histories). Results are then cached **per session file** to
+`~/.pi/agent/usage-cache.json`, keyed by each file's mtime + size. Subsequent
+opens — even after restarting pi — only re-parse sessions that actually changed,
+so the panel comes up in well under a second instead of re-reading everything.
+The cache is rebuilt automatically if you change `modelPrices` (costs are baked
+in at parse time). Delete the file to force a full re-scan.
 
 ## How it works
 
@@ -145,11 +196,13 @@ rate-limit headers still work and are shown.
 
 | File | Purpose |
 |------|---------|
-| `index.ts` | Entry point — registers commands, orchestrates scan + widget |
-| `view.ts` | The interactive TUI panel component (`UsageView`) |
-| `aggregate.ts` | Session scanning + windowing + attribution |
+| `index.ts` | Entry point — registers commands (incl. `/usage-models`, `/usage-daily`, `/usage-stats`), orchestrates scan + widget |
+| `view.ts` | The interactive TUI panel component (`UsageView`) with Overview / Models / Daily / Stats / Hourly / Agents / Wrapped AI views |
+| `aggregate.ts` | Session scanning + windowing + attribution; daily aggregation, contribution graph, and lifetime stats |
 | `provider.ts` | Active-provider detection + rate-limit parsing + live quota fetch |
-| `config.ts` | Load/save `~/.pi/agent/usage.json` |
+| `config.ts` | Load/save `~/.pi/agent/usage.json` (merges bundled default prices) |
+| `cache.ts` | Persistent incremental scan cache (`~/.pi/agent/usage-cache.json`) |
+| `prices.ts` | Bundled default model prices ($/M tokens) from official provider pricing pages |
 | `format.ts` | Token/currency/bar/label formatting helpers |
 
 ## Install

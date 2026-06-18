@@ -26,6 +26,7 @@ import {
 	type Report,
 	scanSessions,
 } from "./aggregate.ts";
+import { loadScanCache, type ScanCache, saveScanCache } from "./cache.ts";
 import { loadConfig, saveConfig, type UsageConfig } from "./config.ts";
 import { formatCost, formatTokens } from "./format.ts";
 import {
@@ -35,7 +36,7 @@ import {
 	parseRateLimits,
 	type RateLimitWindow,
 } from "./provider.ts";
-import { UsageView } from "./view.ts";
+import { UsageView, type ViewKey } from "./view.ts";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -49,6 +50,9 @@ export default function usageExtension(pi: ExtensionAPI) {
 		skillToPlugin: new Map(),
 	};
 	let cache: { report: Report; at: number } | null = null;
+	// Persistent incremental scan cache (loaded lazily on first scan), so only
+	// new/changed session files are re-parsed across opens and restarts.
+	let scanCache: ScanCache | null = null;
 	// Latest context, captured for widget updates (setWidget needs ctx.ui).
 	let latestCtx: ExtensionContext | null = null;
 	// Active provider + most recent rate-limit headers, captured live from the
@@ -91,13 +95,55 @@ export default function usageExtension(pi: ExtensionAPI) {
 	// ------------------------------------------------------------------ /usage
 
 	pi.registerCommand("usage", {
-		description: "Show usage panel (5h / day / week / all, quotas, breakdowns)",
+		description:
+			"Usage panel — Overview / Models / Daily / Stats / Hourly / Agents / Wrapped AI",
 		handler: async (_args, ctx) => {
 			await openUsagePanel(ctx);
 		},
 	});
 
-	async function openUsagePanel(ctx: ExtensionContext): Promise<void> {
+	// View shortcuts: open the panel directly on a specific menu.
+	pi.registerCommand("usage-models", {
+		description: "Open the usage panel on the Models view",
+		handler: async (_args, ctx) => {
+			await openUsagePanel(ctx, "models");
+		},
+	});
+	pi.registerCommand("usage-daily", {
+		description: "Open the usage panel on the Daily summary view",
+		handler: async (_args, ctx) => {
+			await openUsagePanel(ctx, "daily");
+		},
+	});
+	pi.registerCommand("usage-stats", {
+		description: "Open the usage panel on the Stats (contribution graph) view",
+		handler: async (_args, ctx) => {
+			await openUsagePanel(ctx, "stats");
+		},
+	});
+	pi.registerCommand("usage-hourly", {
+		description: "Open the usage panel on the Hourly (time-of-day) view",
+		handler: async (_args, ctx) => {
+			await openUsagePanel(ctx, "hourly");
+		},
+	});
+	pi.registerCommand("usage-agents", {
+		description: "Open the usage panel on the Agents (provider) view",
+		handler: async (_args, ctx) => {
+			await openUsagePanel(ctx, "agents");
+		},
+	});
+	pi.registerCommand("usage-wrapped", {
+		description: "Open the usage panel on the Wrapped AI year-in-review view",
+		handler: async (_args, ctx) => {
+			await openUsagePanel(ctx, "wrapped");
+		},
+	});
+
+	async function openUsagePanel(
+		ctx: ExtensionContext,
+		initialView?: ViewKey,
+	): Promise<void> {
 		// Constructed with tui/theme undefined; both are re-bound inside the
 		// custom() factory where pi hands us the real instances. No setReport
 		// is called before binding, so the optional tui access is safe.
@@ -116,6 +162,7 @@ export default function usageExtension(pi: ExtensionAPI) {
 				void configureLimits(ctx);
 			},
 		});
+		if (initialView) view.setInitialView(initialView);
 
 		await ctx.ui.custom<undefined>((tui, theme, _kb, done) => {
 			view.bind(tui, theme, () => done(undefined));
@@ -144,12 +191,16 @@ export default function usageExtension(pi: ExtensionAPI) {
 		}
 		view.setScanning(0, 0);
 		try {
+			if (!scanCache) scanCache = loadScanCache();
 			const report = await scanSessions(
 				config.maxSessions ?? 1000,
 				config.excludeProjects ?? [],
 				(loaded, total) => view.setScanning(loaded, total),
+				config.modelPrices ?? {},
+				scanCache,
 			);
 			cache = { report, at: Date.now() };
+			saveScanCache(scanCache);
 			view.setReport(report);
 			refreshWidget();
 		} catch (err) {
@@ -232,6 +283,69 @@ export default function usageExtension(pi: ExtensionAPI) {
 		refreshWidget();
 		ctx.ui.notify(
 			`Budgets set · 5h ${formatCost(config.fiveHourLimit ?? 0)} / ${formatTokens(config.fiveHourTokenLimit ?? 0)} tok`,
+			"info",
+		);
+	}
+
+	// ----------------------------------------------------------- /usage-pricing
+
+	pi.registerCommand("usage-pricing", {
+		description:
+			"Set a manual per-model price ($/M tokens) for token-priced models",
+		handler: async (args, ctx) => {
+			await configurePricing(ctx, typeof args === "string" ? args : "");
+		},
+	});
+
+	async function configurePricing(
+		ctx: ExtensionContext,
+		arg: string,
+	): Promise<void> {
+		const model =
+			arg.trim() ||
+			(await ctx.ui.input(
+				"Model ID (e.g. glm-5-turbo, or base name claude-opus-4.7)",
+				"",
+			)) ||
+			"";
+		if (!model.trim()) return;
+		const key = model.trim();
+		const cur = config.modelPrices?.[key] ?? {};
+		const inp = await ctx.ui.input(
+			`Input price for ${key} (USD per 1M tokens)`,
+			`${cur.input ?? 0}`,
+		);
+		if (inp === undefined) return;
+		const out = await ctx.ui.input(
+			"Output price (USD per 1M tokens)",
+			`${cur.output ?? 0}`,
+		);
+		if (out === undefined) return;
+		const cr = await ctx.ui.input(
+			"Cache-read price (USD per 1M tokens)",
+			`${cur.cacheRead ?? 0}`,
+		);
+		if (cr === undefined) return;
+		const cw = await ctx.ui.input(
+			"Cache-write price (USD per 1M tokens)",
+			`${cur.cacheWrite ?? 0}`,
+		);
+		if (cw === undefined) return;
+
+		const price = {
+			input: parseUsd(inp),
+			output: parseUsd(out),
+			cacheRead: parseUsd(cr),
+			cacheWrite: parseUsd(cw),
+		};
+		config = {
+			...config,
+			modelPrices: { ...(config.modelPrices ?? {}), [key]: price },
+		};
+		saveConfig(config);
+		cache = null; // force a re-scan so the new price is applied
+		ctx.ui.notify(
+			`Price set for ${key}: in $${price.input} / out $${price.output} per 1M tokens`,
 			"info",
 		);
 	}
