@@ -6,13 +6,45 @@ import { stripFrontmatter } from "./metadata.ts";
 import { buildParallelDispatchBlock } from "./subagents.ts";
 
 const SUBAGENT_STOP = "<SUBAGENT-STOP>";
+const MULTI_SKILL_LOCATION = "pi-multi-skill";
 const SKILL_CHECK_MARKERS = [
 	"If you think there is even a 1% chance a skill might apply",
 	"Invoke relevant or requested skills BEFORE any response",
 ];
 
+/** Pi TUI collapses user messages that match this envelope (see pi-coding-agent parseSkillBlock). */
+const PI_SKILL_BLOCK_RE =
+	/^<skill name="([^"]+)" location="([^"]+)">\n([\s\S]*?)\n<\/skill>(?:\n\n([\s\S]+))?$/;
+
 function getAgentDir(): string {
 	return join(homedir(), ".pi", "agent");
+}
+
+function escapeXml(text: string): string {
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/"/g, "&quot;")
+		.replace(/</g, "&lt;");
+}
+
+/** Wrap content in Pi's native skill block so the TUI shows `[skill] name`. */
+export function formatPiSkillBlock(
+	name: string,
+	location: string,
+	content: string,
+): string {
+	return `<skill name="${escapeXml(name)}" location="${escapeXml(location)}">\n${content}\n</skill>`;
+}
+
+export function isPiSkillBlock(text: string): boolean {
+	return PI_SKILL_BLOCK_RE.test(text);
+}
+
+function formatCollapsedSkillName(skills: EnrichedSkillInfo[]): string {
+	const names = skills.map((s) => s.name);
+	if (names.length === 1) return names[0];
+	if (names.length <= 3) return names.join(", ");
+	return `${names.slice(0, 2).join(", ")} +${names.length - 2} more`;
 }
 
 function readSkillFile(skill: EnrichedSkillInfo, cwd: string): string | null {
@@ -45,19 +77,17 @@ function extractCommandsSection(body: string): string {
 	return match ? match[0].trim() : "";
 }
 
-function formatMetaBlock(skill: EnrichedSkillInfo): string {
+function formatMetaBody(skill: EnrichedSkillInfo): string {
 	const commands = skill.metadata.commands.length
 		? `\n\nCommands: ${skill.metadata.commands.join(", ")}`
 		: "";
 	const commandsSection = extractCommandsSection(skill.body);
 	const sectionText = commandsSection ? `\n\n${commandsSection}` : "";
 
-	return `<skill name="${skill.name}" location="${skill.filePath}" mode="meta">
-${skill.metadata.description}${commands}${sectionText}
-</skill>`;
+	return `(load mode: meta)\n\n${skill.metadata.description}${commands}${sectionText}`;
 }
 
-function formatLazyBlock(skill: EnrichedSkillInfo, body: string): string {
+function formatLazyBody(skill: EnrichedSkillInfo, body: string): string {
 	const baseDir = dirname(skill.filePath);
 	const intro = body
 		.split("\n")
@@ -65,22 +95,20 @@ function formatLazyBlock(skill: EnrichedSkillInfo, body: string): string {
 		.slice(0, 8)
 		.join("\n");
 
-	return `<skill name="${skill.name}" location="${skill.filePath}" mode="lazy">
-References are relative to ${baseDir}. Load reference files with \`read\` only when the active workflow step requires them.
-
-${intro}
-
-${extractCommandsSection(body)}
-</skill>`;
+	return [
+		`(load mode: lazy)`,
+		`References are relative to ${baseDir}. Load reference files with \`read\` only when the active workflow step requires them.`,
+		"",
+		intro,
+		extractCommandsSection(body),
+	]
+		.filter(Boolean)
+		.join("\n");
 }
 
-function formatFullBlock(skill: EnrichedSkillInfo, body: string): string {
+function formatFullBody(skill: EnrichedSkillInfo, body: string): string {
 	const baseDir = dirname(skill.filePath);
-	return `<skill name="${skill.name}" location="${skill.filePath}" mode="full">
-References are relative to ${baseDir}.
-
-${body}
-</skill>`;
+	return `References are relative to ${baseDir}.\n\n${body}`;
 }
 
 function dedupeBody(name: string, body: string, seen: Set<string>): string {
@@ -123,39 +151,28 @@ function renderSkillBlock(
 	if (!raw) return null;
 
 	const body = dedupeBody(skill.name, stripFrontmatter(raw).trim(), seenDedup);
+	let content: string;
 	switch (effectiveMode) {
 		case "meta":
-			return formatMetaBlock(skill);
+			content = formatMetaBody(skill);
+			break;
 		case "lazy":
-			return formatLazyBlock(skill, body);
+			content = formatLazyBody(skill, body);
+			break;
 		default:
-			return formatFullBlock(skill, body);
+			content = formatFullBody(skill, body);
 	}
+
+	return formatPiSkillBlock(skill.name, skill.filePath, content);
 }
 
-export function buildCombinedMessage(
+function buildAgentPayload(
 	skills: EnrichedSkillInfo[],
-	cwd: string,
+	expandedBlocks: string[],
 	options: BuildOptions,
-): { message: string; notFound: string[]; skippedDuplicates: string[] } {
-	const expandedBlocks: string[] = [];
-	const notFound: string[] = [];
-	const seenDedup = new Set<string>();
-	const skippedDuplicates: string[] = [];
-
-	for (const skill of skills) {
-		const before = seenDedup.size;
-		const block = renderSkillBlock(skill, cwd, options.mode, seenDedup);
-		if (!block) {
-			notFound.push(skill.name);
-			continue;
-		}
-		if (seenDedup.size > before && before > 0) {
-			skippedDuplicates.push(`${skill.name} (deduplicated sections)`);
-		}
-		expandedBlocks.push(block);
-	}
-
+	notFound: string[],
+	skippedDuplicates: string[],
+): string {
 	const skillNames = skills.map((s) => s.name).join(", ");
 	const bundleAttr =
 		options.bundles && options.bundles.length > 0
@@ -219,17 +236,74 @@ export function buildCombinedMessage(
 		parts.push(`> ⚠️ Conflicts: ${options.conflictWarnings.join("; ")}`);
 	}
 
-	if (options.skippedDuplicates?.length) {
+	if (skippedDuplicates.length > 0) {
 		parts.push("");
-		parts.push(
-			`> ℹ️ Deduplicated: ${options.skippedDuplicates.join(", ")}`,
-		);
+		parts.push(`> ℹ️ Deduplicated: ${skippedDuplicates.join("; ")}`);
 	}
 
 	parts.push("</manually_attached_skills>");
+	return parts.join("\n");
+}
+
+function shouldWrapForDisplay(
+	skills: EnrichedSkillInfo[],
+	options: BuildOptions,
+): boolean {
+	if (skills.length > 1) return true;
+	if (options.parallel || options.bmadStatusBlock || options.embeddedCommand) {
+		return true;
+	}
+	if (options.instructions) return true;
+	if (options.bundles && options.bundles.length > 0) return true;
+	return false;
+}
+
+export function buildCombinedMessage(
+	skills: EnrichedSkillInfo[],
+	cwd: string,
+	options: BuildOptions,
+): { message: string; notFound: string[]; skippedDuplicates: string[] } {
+	const expandedBlocks: string[] = [];
+	const notFound: string[] = [];
+	const seenDedup = new Set<string>();
+	const skippedDuplicates: string[] = [];
+
+	for (const skill of skills) {
+		const before = seenDedup.size;
+		const block = renderSkillBlock(skill, cwd, options.mode, seenDedup);
+		if (!block) {
+			notFound.push(skill.name);
+			continue;
+		}
+		if (seenDedup.size > before && before > 0) {
+			skippedDuplicates.push(`${skill.name} (deduplicated sections)`);
+		}
+		expandedBlocks.push(block);
+	}
+
+	const payload = buildAgentPayload(
+		skills,
+		expandedBlocks,
+		options,
+		notFound,
+		skippedDuplicates,
+	);
+
+	let message: string;
+	if (expandedBlocks.length === 0) {
+		message = payload;
+	} else if (shouldWrapForDisplay(skills, options)) {
+		message = formatPiSkillBlock(
+			formatCollapsedSkillName(skills),
+			skills.length === 1 ? skills[0].filePath : MULTI_SKILL_LOCATION,
+			payload,
+		);
+	} else {
+		message = expandedBlocks[0];
+	}
 
 	return {
-		message: parts.join("\n"),
+		message,
 		notFound,
 		skippedDuplicates,
 	};
@@ -245,7 +319,11 @@ export function resolveAndReadLegacySkill(
 			const content = readFileSync(filePath, "utf-8");
 			const body = stripFrontmatter(content).trim();
 			const baseDir = dirname(filePath);
-			return `<skill name="${skillName}" location="${filePath}">\nReferences are relative to ${baseDir}.\n\n${body}\n</skill>`;
+			return formatPiSkillBlock(
+				skillName,
+				filePath,
+				`References are relative to ${baseDir}.\n\n${body}`,
+			);
 		} catch {
 			// fall through
 		}
@@ -260,7 +338,11 @@ export function resolveAndReadLegacySkill(
 			try {
 				const content = readFileSync(candidate, "utf-8");
 				const body = stripFrontmatter(content).trim();
-				return `<skill name="${skillName}" location="${candidate}">\nReferences are relative to ${dirname(candidate)}.\n\n${body}\n</skill>`;
+				return formatPiSkillBlock(
+					skillName,
+					candidate,
+					`References are relative to ${dirname(candidate)}.\n\n${body}`,
+				);
 			} catch {
 				// continue
 			}

@@ -22,6 +22,7 @@ Pi extensions **must be registered with `pi install`**. Plain `npm install` only
 ```bash
 pi install npm:@zaganjade/pi-usage
 pi install npm:@zaganjade/pi-multi-skill
+pi install npm:@zaganjade/pi-context
 ```
 
 ### Step 2 — Reload pi
@@ -79,7 +80,7 @@ pi -e npm:@zaganjade/pi-multi-skill
 
 > No build step — pi loads TypeScript directly via jiti.
 
-Per-extension docs: [usage/README.md](./usage/README.md) · [multi-skill/README.md](./multi-skill/README.md)
+Per-extension docs: [usage/README.md](./usage/README.md) · [multi-skill/README.md](./multi-skill/README.md) · [Pi-Context/README.md](./Pi-Context/README.md)
 
 ---
 
@@ -135,6 +136,7 @@ Both extensions are **standalone npm packages** — install one or both. They do
 |-----------|-----|-----------|
 | **📊 pi-usage** | [`@zaganjade/pi-usage`](https://www.npmjs.com/package/@zaganjade/pi-usage) | Claude Code-style `/usage` dashboard — Pi-chan navigation, quota bars, attribution, Wrapped AI year-in-review |
 | **⚡ pi-multi-skill** | [`@zaganjade/pi-multi-skill`](https://www.npmjs.com/package/@zaganjade/pi-multi-skill) | Chain skills via `/skills` — bundles, load modes, BMAD `--auto`, universal discovery |
+| **◈ pi-context** | [`@zaganjade/pi-context`](https://www.npmjs.com/package/@zaganjade/pi-context) | Live `/context` window tracker — category breakdown, dot grid, cross-model handoff (GLM → GPT) |
 
 ---
 
@@ -325,6 +327,7 @@ Full reference: [multi-skill/README.md](./multi-skill/README.md)
 |---------|---------|------------|
 | `@zaganjade/pi-usage` | **1.9.0** | Pi-chan menu · Wrapped report · monthly heatmap · Tools glyphs · bundle breakdown · cache v4 |
 | `@zaganjade/pi-multi-skill` | **1.3.0** | `/skills-last` · `/skills-setup` · BMAD status inject · bundle attribution for usage |
+| `@zaganjade/pi-context` | **0.2.0** | Claude Code–style context panel · scannable table · compact grid |
 
 ---
 
@@ -364,6 +367,15 @@ pi-extension/
         ├── registry.ts     skill-index.json
         ├── suggestions.ts  context-aware hints
         └── types.ts        shared types
+└── Pi-Context/             → @zaganjade/pi-context
+    └── src/
+        ├── index.ts        /context, handoff commands, events, widget
+        ├── snapshot.ts     live category snapshot from session + prompt
+        ├── estimate.ts     per-category token estimation
+        ├── view.ts         ContextView TUI (bar + grid + list)
+        ├── handoff.ts      export/import/scale Context Pack
+        ├── config.ts       ~/.pi/agent/context.json
+        └── mascot.ts       Context-chan hints
 ```
 
 ### pi-usage data flow

@@ -199,18 +199,24 @@ Skills are found from **all** of these sources (merged, deduplicated by name):
 
 This means bundles like `@debug` and `@cc-feature` work even when Superpowers skills live in the Claude plugin cache rather than `~/.claude/skills`.
 
-### Claude Code-style message wrapper
+### Pi-native skill display
 
-Combined output uses a structured wrapper (similar to Cursor `manually_attached_skills`):
+Pi collapses user messages only when the **entire** message matches its native skill envelope:
 
 ```xml
-<manually_attached_skills count="3">
-  …priority rules…
-  <skill name="…" mode="meta">…</skill>
-  <embedded_command>/workflow-status</embedded_command>
-  <user_query>Your instructions here</user_query>
-</manually_attached_skills>
+<skill name="skill-a, skill-b" location="pi-multi-skill">
+  <manually_attached_skills count="2" bundles="@debug">
+    …priority rules…
+    <skill name="skill-a" location="/path/to/SKILL.md">…</skill>
+    <skill name="skill-b" location="/path/to/SKILL.md">…</skill>
+    <user_query>Your instructions here</user_query>
+  </manually_attached_skills>
+</skill>
 ```
+
+- **1 skill, no extras** → single native block → `[skill] skill-name`
+- **2+ skills** (or bundles/instructions) → outer native block hides all inner content → `[skill] a, b, c` (Ctrl+O to expand)
+- Inner `<manually_attached_skills bundles="…">` is preserved for **pi-usage** bundle attribution
 
 ### Session hints
 

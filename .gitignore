@@ -7,3 +7,7 @@ package-lock.json
 .tsccheck.json
 **/node_modules/
 **/package-lock.json
+
+# Internal design docs — not for git/npm
+Pi-Context/docs/
+Pi-Context/IMPLEMENTATION-PLAN.md

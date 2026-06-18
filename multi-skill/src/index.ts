@@ -18,7 +18,7 @@ import {
 } from "./bundle-status.ts";
 import { bmadAutoHint, resolveBmadAutoSkills } from "./bmad-auto.ts";
 import { buildBmadStatusBlock, shouldInjectBmadStatus } from "./bmad-status.ts";
-import { buildCombinedMessage, resolveAndReadLegacySkill } from "./build.ts";
+import { buildCombinedMessage } from "./build.ts";
 import { getSkillsArgumentCompletions } from "./completions.ts";
 import { resolveSkillConflicts } from "./conflicts.ts";
 import { discoverAllSkills, resolveSkillByName } from "./discover.ts";
@@ -347,22 +347,18 @@ export default function (pi: ExtensionAPI) {
 			skillNames,
 			available,
 		);
-		const blocks = selected
-			.map((s) => resolveAndReadLegacySkill(s.name, s.filePath, ctx.cwd))
-			.filter((b): b is string => b !== null);
 
-		if (blocks.length === 0) return { action: "continue" };
+		if (selected.length === 0) return { action: "continue" };
 
-		const wrapped = [
-			`<manually_attached_skills count="${blocks.length}">`,
-			...blocks,
-			args ? `\n<user_query>\n${args}\n</user_query>` : "",
-			"</manually_attached_skills>",
-		]
-			.filter(Boolean)
-			.join("\n\n");
+		const { message } = buildCombinedMessage(selected, ctx.cwd, {
+			mode: "full",
+			parallel: false,
+			instructions: args || undefined,
+		});
 
-		return { action: "transform", text: wrapped };
+		if (!message.includes("<skill ")) return { action: "continue" };
+
+		return { action: "transform", text: message };
 	});
 }
 

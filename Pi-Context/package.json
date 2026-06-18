@@ -1,0 +1,31 @@
+{
+	"name": "@zaganjade/pi-context",
+	"version": "0.3.9",
+	"description": "Live context-window tracker for pi — /context breakdown, unified bar, cross-model handoff.",
+	"type": "module",
+	"keywords": ["pi-package"],
+	"publishConfig": { "access": "public" },
+	"license": "MIT",
+	"author": "ZaganJade <tipstrik81@gmail.com>",
+	"homepage": "https://github.com/ZaganJade/pi-extension/tree/main/Pi-Context",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ZaganJade/pi-extension.git",
+		"directory": "Pi-Context"
+	},
+	"bugs": {
+		"url": "https://github.com/ZaganJade/pi-extension/issues"
+	},
+	"main": "./src/index.ts",
+	"files": ["src/", "scripts/", "README.md", "LICENSE"],
+	"scripts": {
+		"verify": "node scripts/verify.mjs"
+	},
+	"pi": {
+		"extensions": ["./src/index.ts"]
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "*",
+		"@earendil-works/pi-tui": "*"
+	}
+}
