@@ -525,7 +525,7 @@ MIT — see [LICENSE](./usage/LICENSE).
 
 <div align="center">
 
-**Made with ❤️ for the [pi](https://github.com/earendil-works/pi-mono) community**
+**Author:** [ZaganJade](https://github.com/ZaganJade) · tipstrik81@gmail.com
 
 [Report a bug](https://github.com/ZaganJade/pi-extension/issues) · [Request a feature](https://github.com/ZaganJade/pi-extension/issues) · [npm: @zaganjade](https://www.npmjs.com/~zaganjade)
 
