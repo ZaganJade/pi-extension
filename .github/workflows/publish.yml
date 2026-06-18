@@ -1,7 +1,7 @@
 name: Publish Packages
 
-# Publish both workspaces (@zaganjade/pi-usage, @zaganjade/pi-multi-skill)
-# to npm AND GitHub Packages.
+# Publish workspaces (@zaganjade/pi-usage, @zaganjade/pi-multi-skill, @zaganjade/pi-context)
+# to npm AND GitHub Packages. Skips versions already on the registry.
 #
 # Triggers:
 #   - Manual:  Actions tab → "Run workflow"
@@ -33,13 +33,22 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - run: npm ci
-
-      # Publish all workspaces to npm (versions already bumped in package.json).
-      # Root package is private:true so it is skipped automatically.
-      - run: npm publish --workspaces --access public
+      - name: Publish changed workspace versions
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          for ws in usage multi-skill Pi-Context; do
+            name=$(node -p "require('./${ws}/package.json').name")
+            ver=$(node -p "require('./${ws}/package.json').version")
+            published=$(npm view "${name}" version 2>/dev/null || true)
+            if [ "${published}" = "${ver}" ]; then
+              echo "Skip ${name}@${ver} (already on npm)"
+              continue
+            fi
+            echo "Publishing ${name}@${ver} to npm"
+            npm publish --workspace "${ws}" --access public
+          done
 
   publish-gpr:
     name: Publish to GitHub Packages
@@ -55,8 +64,19 @@ jobs:
           node-version: '20'
           registry-url: 'https://npm.pkg.github.com'
 
-      - run: npm ci
-
-      - run: npm publish --workspaces
+      - name: Publish changed workspace versions
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          for ws in usage multi-skill Pi-Context; do
+            name=$(node -p "require('./${ws}/package.json').name")
+            ver=$(node -p "require('./${ws}/package.json').version")
+            published=$(npm view "${name}" version --registry=https://npm.pkg.github.com 2>/dev/null || true)
+            if [ "${published}" = "${ver}" ]; then
+              echo "Skip ${name}@${ver} (already on GPR)"
+              continue
+            fi
+            echo "Publishing ${name}@${ver} to GitHub Packages"
+            npm publish --workspace "${ws}"
+          done
