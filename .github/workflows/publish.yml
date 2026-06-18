@@ -1,0 +1,62 @@
+name: Publish Packages
+
+# Publish both workspaces (@zaganjade/pi-usage, @zaganjade/pi-multi-skill)
+# to npm AND GitHub Packages.
+#
+# Triggers:
+#   - Manual:  Actions tab → "Run workflow"
+#   - Release: publish when a GitHub Release is published
+#
+# Secrets required (Settings → Secrets and variables → Actions):
+#   NPM_TOKEN        → npm automation/access token (https://www.npmjs.com/settings/zaganjade/tokens)
+#                      (granular or classic, needs "Publish" / Automation)
+#   GITHUB_TOKEN     → auto-provided by Actions (no setup needed)
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm ci
+
+      # Publish all workspaces to npm (versions already bumped in package.json).
+      # Root package is private:true so it is skipped automatically.
+      - run: npm publish --workspaces --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-gpr:
+    name: Publish to GitHub Packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+
+      - run: npm ci
+
+      - run: npm publish --workspaces
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
