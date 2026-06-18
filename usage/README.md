@@ -7,6 +7,42 @@ tools, and projects**, bucketed by time window — with always-visible **5-hour*
 and **weekly** quota bars. Mirrors the layout and wording of Claude Code's
 `/usage` screen.
 
+---
+
+## 🚀 Install
+
+> ⚠️ **Use `pi install` — NOT `npm install`.**
+> Plain `npm install` only drops files in `node_modules`. Pi does **not** scan
+> that folder, so the package is **never detected** and `/usage` won't appear.
+> You must register it with `pi install` so it lands in `"packages"` in
+> `~/.pi/agent/settings.json`.
+
+```bash
+pi install npm:@zaganjade/pi-usage
+```
+
+Then inside pi:
+
+```
+/reload
+```
+
+Verify it loaded:
+
+```bash
+pi list          # should show npm:@zaganjade/pi-usage
+```
+
+Type `/` — `/usage` should appear in slash autocomplete.
+
+**Don't do this** (common mistake — package installs but pi ignores it):
+
+```bash
+npm install -g @zaganjade/pi-usage   # ❌ pi will not detect this
+```
+
+---
+
 ### Overview (`/usage`)
 
 Seven views via `Tab` or `1`–`7`. The navigation bar is a **two-row menu**: colored icon tabs on top, plus **Pi-chan** (the panel mascot) with a contextual hint for the active view. Overview shows quota bars, headline stats, active provider, top consumer, a trend sparkline, and compact top models.

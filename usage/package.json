@@ -1,6 +1,6 @@
 {
 	"name": "@zaganjade/pi-usage",
-	"version": "1.9.0",
+	"version": "1.9.1",
 	"description": "Claude Code-style /usage panel for pi — Pi-chan navigation, seven views, 5H/weekly quota, attribution by model/skill/bundle/plugin/tool/project, Wrapped year-in-review with monthly heatmap, multi-skill + bundle tracking, live upstream quotas (ZAI, OpenAI Codex).",
 	"keywords": [
 		"pi-package"

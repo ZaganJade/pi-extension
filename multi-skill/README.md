@@ -4,6 +4,42 @@ Load multiple skills at once in [pi](https://github.com/earendil-works/pi-mono) 
 
 **Version 1.3.0** — skill chaining, bundle presets, conflict resolution, parallel dispatch, activation stats, `/skills-last`, `/skills-setup`, and bundle attribution in pi-usage.
 
+---
+
+## 🚀 Install
+
+> ⚠️ **Use `pi install` — NOT `npm install`.**
+> Plain `npm install` only drops files in `node_modules`. Pi does **not** scan
+> that folder, so the package is **never detected** and `/skills` won't appear.
+> You must register it with `pi install` so it lands in `"packages"` in
+> `~/.pi/agent/settings.json`.
+
+```bash
+pi install npm:@zaganjade/pi-multi-skill
+```
+
+Then inside pi:
+
+```
+/reload
+```
+
+Verify it loaded:
+
+```bash
+pi list          # should show npm:@zaganjade/pi-multi-skill
+```
+
+Type `/` — `/skills` should appear in slash autocomplete.
+
+**Don't do this** (common mistake — package installs but pi ignores it):
+
+```bash
+npm install -g @zaganjade/pi-multi-skill   # ❌ pi will not detect this
+```
+
+---
+
 ## Why?
 
 Pi's built-in `/skill:name` loads one skill at a time. When you need several skills working together (e.g. `bmad-master` + `analyst` + `pm`, or `systematic-debugging` + `test-driven-development`), invoking them one by one is slow and easy to forget.
