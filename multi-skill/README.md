@@ -27,14 +27,47 @@ Pi's built-in `/skill:name` only loads one skill at a time. When you need multip
 
 ## Install
 
+Use **`pi install`**, not plain `npm install`. Pi registers packages in `settings.json` under `"packages"` and loads extensions from the `pi.extensions` manifest.
+
 ```bash
-pi install git:github.com/ZaganJade/pi-multi-skill
+pi install npm:@zaganjade/pi-multi-skill
 ```
 
-Or from a local path:
+Then run `/reload` in pi (or restart the CLI). The `/skills` command should appear in slash autocomplete.
+
+Quick test without persisting to settings:
+
+```bash
+pi -e npm:@zaganjade/pi-multi-skill
+```
+
+From GitHub (monorepo):
+
+```bash
+pi install git:github.com/ZaganJade/pi-extension
+```
+
+From a local path:
 
 ```bash
 pi install ./multi-skill
+```
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `/skills` not in autocomplete | Run `pi install npm:@zaganjade/pi-multi-skill`, then `/reload` |
+| Installed with `npm install -g` but pi ignores it | Use `pi install npm:@zaganjade/pi-multi-skill` instead |
+| Added `npm:...` to `"extensions"` in settings | Wrong key — use `"packages"`, or run `pi install` |
+| Command shows as `/skills:2` | Two copies loaded (local path + npm). Remove the duplicate from `extensions` or `packages` |
+| Extension listed but disabled | Run `pi config` and enable the extension resource |
+
+Verify install:
+
+```bash
+pi list
+# should show: npm:@zaganjade/pi-multi-skill
 ```
 
 ## How it works

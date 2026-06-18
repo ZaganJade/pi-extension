@@ -207,6 +207,48 @@ rate-limit headers still work and are shown.
 
 ## Install
 
-This is an auto-discovered pi extension — it already lives at
-`~/.pi/agent/extensions/usage/`. Run `/reload` in pi (or restart) and it's
-available. No build step; pi loads TypeScript directly via jiti.
+Use **`pi install`**, not plain `npm install`. Pi registers packages in `settings.json` under `"packages"` and loads extensions from the `pi.extensions` manifest in `package.json`.
+
+```bash
+pi install npm:@zaganjade/pi-usage
+```
+
+Then run `/reload` in pi (or restart the CLI). Commands like `/usage` should appear in slash autocomplete.
+
+Quick test without persisting to settings:
+
+```bash
+pi -e npm:@zaganjade/pi-usage
+```
+
+From GitHub (monorepo):
+
+```bash
+pi install git:github.com/ZaganJade/pi-extension
+```
+
+From a local path:
+
+```bash
+pi install ./usage
+```
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `/usage` not in autocomplete | Run `pi install npm:@zaganjade/pi-usage`, then `/reload` |
+| Installed with `npm install -g` but pi ignores it | Use `pi install npm:@zaganjade/pi-usage` instead |
+| Added `npm:...` to `"extensions"` in settings | Wrong key — use `"packages"`, or run `pi install` |
+| Extension listed but disabled | Run `pi config` and enable the extension resource |
+
+Verify install:
+
+```bash
+pi list
+# should show: npm:@zaganjade/pi-usage
+```
+
+> **Note:** `npm install` only downloads the package to disk. Pi does not auto-scan global or local `node_modules` — you must register the package with `pi install` so it appears in `"packages"`.
+
+No build step; pi loads TypeScript directly via jiti.

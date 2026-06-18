@@ -1,10 +1,14 @@
 {
 	"name": "@zaganjade/pi-multi-skill",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Load multiple skills at once via /skills command. Supports comma-separated skill names with autocomplete and instructions.",
+	"type": "module",
 	"keywords": [
 		"pi-package"
 	],
+	"publishConfig": {
+		"access": "public"
+	},
 	"license": "MIT",
 	"author": "ZaganJade <tipstrik81@gmail.com>",
 	"homepage": "https://github.com/ZaganJade/pi-extension/tree/main/multi-skill",

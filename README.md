@@ -9,7 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![pi-package](https://img.shields.io/badge/keyword-pi--package-blue)](https://pi.dev/packages)
 
-**Two production-ready extensions** — zero-config, auto-discovered by pi, no build step.
+**Two production-ready extensions** — install with `pi install`, no build step.
 
 </div>
 
@@ -120,17 +120,36 @@ Load multiple skills in a single command. Pi's built-in `/skill:name` only loads
 
 ## 🚀 Install
 
+Pi extensions from npm must be registered with **`pi install`**. Plain `npm install` (global or local) only downloads files — pi will **not** load the extension unless it is listed under `"packages"` in `~/.pi/agent/settings.json`.
+
 ### From npm (recommended)
 
 ```bash
 pi install npm:@zaganjade/pi-usage
 pi install npm:@zaganjade/pi-multi-skill
+/reload
+```
+
+Verify:
+
+```bash
+pi list
+```
+
+You should see both packages with their install paths. Then `/usage` and `/skills` appear in slash autocomplete.
+
+Quick test without saving to settings:
+
+```bash
+pi -e npm:@zaganjade/pi-usage
+pi -e npm:@zaganjade/pi-multi-skill
 ```
 
 ### From GitHub
 
 ```bash
 pi install git:github.com/ZaganJade/pi-extension
+/reload
 ```
 
 ### From local path
@@ -139,9 +158,21 @@ pi install git:github.com/ZaganJade/pi-extension
 git clone https://github.com/ZaganJade/pi-extension.git
 pi install ./pi-extension/usage
 pi install ./pi-extension/multi-skill
+/reload
 ```
 
-After installing, run `/reload` in pi (or restart) and the commands are available immediately. **No build step** — pi loads TypeScript directly via jiti.
+### ⚠️ Common mistakes
+
+| What people try | Why it fails |
+|-----------------|--------------|
+| `npm install -g @zaganjade/pi-usage` | Package lands in npm's global folder; pi never registers it |
+| Adding `npm:@zaganjade/pi-usage` to `"extensions"` in settings | Wrong settings key — npm packages belong in `"packages"` |
+| Install but forget `/reload` | Extension not loaded until reload or restart |
+| Extension disabled in `pi config` | Re-enable the extension resource for that package |
+
+After installing, run `/reload` in pi (or restart). **No build step** — pi loads TypeScript directly via jiti.
+
+See also: [usage/README.md](./usage/README.md) · [multi-skill/README.md](./multi-skill/README.md)
 
 ---
 
