@@ -142,24 +142,59 @@ Both extensions are **standalone npm packages** — install one or both. They do
 
 Real-time usage dashboard for pi. Mirrors Claude Code's `/usage` screen but works with **any provider** — ZAI, OpenAI Codex, OpenRouter, Anthropic, custom routers, and more.
 
-### Preview
+### Preview — Overview (`/usage`)
+
+Seven views via `Tab` or `1`–`7`. Overview shows always-on quota bars, headline stats, active provider, top consumer, a 30-day trend sparkline, and compact top models.
 
 ```
-┌─ Usage ──────────────────────────────── 5H │ DAY │ WEEK │ ALL ─┐
+────────────────────────────────────────────────────────────────
+ Usage ────────────────────────────────  5H │ DAY │ WEEK │ ALL
 
-  Showing: last 24 hours                   last activity 2m ago · 254 sessions
+   1 Overview │ 2 Models │ 3 Daily │ 4 Stats │ 5 Hourly │ 6 Agents │ 7 Wrapped
 
-  5-hour quota     ████░░░░░░░░░░░ 12% used / 145.9M · 88% left · resets 4h 58m
-  Weekly quota     ██████░░░░░░░░░ 55% used / 176.7M · 45% left · resets 11h 49m
+  Showing: last 24 hours              last activity 2m ago  ·  254 sessions
 
-  ↑51.8M  ↓3.7M  ⚡97.7M  $0.201   ·  855 turns
+  5-hour quota     ████░░░░░░░░░░░░  12% used / 145.9M · 88% left · resets 4h 58m
+  Weekly quota     ██████░░░░░░░░░░  55% used / 176.7M · 45% left · resets 11h 49m
+  live from provider
+  max plan · upstream quota
+  Web searches  0/4000
+
+  ↑51.8M  ↓3.7M  ⚡97.7M  145.9M tokens   ·  855 turns
+
+  Active provider
+  zai / glm-5.2  api.z.ai  key ✓
+  Rate limits (live, from last response)
+  tokens/min       ████████░░░░  12.4K/16K  resets in 42s
 
   Top consumer
-  100% of usage came from model gpt-5.5
+  73% of usage came from model glm-5.2
 
-  Models                          %        tokens
-  glm-5.2                      73% ███████████████ 81.2M
-  glm-5.1                      11% ██░░░░░░░░░░░░░ 12.1M
+  Trend  ▁▂▃▅▆▅▄▃▂▁▂▃  Jun 10 → Jun 17
+
+  Top models                        %   tokens
+  glm-5.2                        73% ███████████████ 106.5M
+  glm-5.1                        11% ██░░░░░░░░░░░░░  16.1M
+  gpt-5.5                         8% █░░░░░░░░░░░░░░  11.2M
+
+  → Tab for views · 2 Models · 3 Daily · 5 Hourly · 7 Wrapped AI
+```
+
+### Preview — Models view (`/usage-models`)
+
+Full breakdown: model table with tok/s, plus Skills, Plugin usage (with contributing skills/tools), Tools, and Projects.
+
+```
+  Models                            %   tokens   tok/s
+  glm-5.2                        73% ███████████████ 106.5M   142/s
+  glm-5.1                        11% ██░░░░░░░░░░░░░  16.1M    98/s
+  tok/s · est. avg output speed
+
+  Plugin usage                      %   tokens  via
+  frontend-design                12% ██░░░░░░ 720k   frontend-design
+  bmad                           12% ██░░░░░░ 720k   bmad-master, analyst
+  pi-subagents                    7% █░░░░░░░ 450k   subagent
+  (core / no plugin)             59% ██████░░ 3.6M   builtin tools only
 ```
 
 ### Features
@@ -224,14 +259,14 @@ Monorepo layout:
 pi-extension/
 ├── usage/                  → @zaganjade/pi-usage
 │   └── src/
-│       ├── index.ts        entry — commands, scan orchestration, widget
-│       ├── view.ts         TUI panel (UsageView)
-│       ├── aggregate.ts    session scanning + attribution
+│       ├── index.ts        orchestrator — commands, events, scan + quota coordination
+│       ├── view.ts         TUI panel (UsageView, 7 views)
+│       ├── aggregate.ts    session scan, attribution, windowing
 │       ├── provider.ts     live quota fetch + rate-limit parsing
 │       ├── config.ts       ~/.pi/agent/usage.json
-│       ├── cache.ts        incremental scan cache
-│       ├── prices.ts       default model price table
-│       └── format.ts       token/currency/bar helpers
+│       ├── cache.ts        ~/.pi/agent/usage-cache.json
+│       ├── prices.ts       bundled default model prices
+│       └── format.ts       token / currency / bar helpers
 └── multi-skill/            → @zaganjade/pi-multi-skill
     └── src/
         └── index.ts        /skills command, autocomplete, input handler
@@ -239,33 +274,85 @@ pi-extension/
 
 ### pi-usage data flow
 
+Opening `/usage` runs **two independent pipelines in parallel** — session history (historical attribution) and provider quota (live upstream state). They merge only at render time inside `UsageView`.
+
 ```mermaid
 flowchart TB
-  subgraph sources ["Data sources"]
+  subgraph trigger ["Trigger"]
+    CMD["/usage or /usage-*"]
+  end
+
+  subgraph sessionTrack ["Track A — Session aggregation (historical)"]
+    direction TB
     S1["~/.pi/agent/sessions/*.jsonl"]
-    S2["Provider APIs · ZAI / Codex / OpenRouter"]
-    S3["after_provider_response headers"]
+    S2["usage-cache.json\nmtime-keyed per file"]
+    S3["usage.json\nbudgets · excludes · modelPrices"]
+    S4["prices.ts\nbundled defaults"]
+    AGG["aggregate.ts\nscanSessions()"]
+    MAPS["buildAttributionMaps()\ntool/skill → plugin"]
+    REPORT["Report\nall attributed turns"]
+    WIN["windowize()\n5h · 24h · 7d · all"]
+    S1 --> AGG
+    S2 --> AGG
+    S3 --> AGG
+    S4 --> S3
+    MAPS --> AGG
+    AGG --> REPORT
+    REPORT --> WIN
   end
 
-  subgraph core ["usage/src"]
-    AGG["aggregate.ts\nscan + attribute turns"]
-    CACHE["cache.ts\nmtime-keyed cache"]
-    PROV["provider.ts\nlive quota + rate limits"]
-    VIEW["view.ts\nUsageView TUI"]
-    IDX["index.ts\ncommands + widget"]
+  subgraph providerTrack ["Track B — Live provider quota"]
+    direction TB
+    P1["ctx.model\nactive provider"]
+    P2["after_provider_response\nrate-limit headers"]
+    P3["Provider APIs\nZAI · Codex · OpenRouter · OpenAI"]
+    PROV["provider.ts\nfetchProviderQuota()"]
+    QUOTA["ProviderQuota\nplan % · resets · credits"]
+    P1 --> PROV
+    P2 --> PROV
+    P3 --> PROV
+    PROV --> QUOTA
   end
 
-  S1 --> AGG
-  AGG --> CACHE
-  CACHE --> VIEW
-  S2 --> PROV
-  S3 --> PROV
-  PROV --> VIEW
-  IDX --> VIEW
-  IDX --> AGG
+  subgraph render ["Render"]
+    IDX["index.ts\nopenUsagePanel()"]
+    VIEW["view.ts\nUsageView"]
+    CMD --> IDX
+    IDX --> AGG
+    IDX --> PROV
+    WIN --> VIEW
+    QUOTA --> VIEW
+  end
+
+  subgraph persist ["Persistence"]
+    CACHE_W["cache.ts\nsaveScanCache()"]
+    AGG --> CACHE_W
+    CACHE_W --> S2
+  end
 ```
 
-Each assistant turn is attributed to **model**, **project**, **skill**, **plugin**, and **tool** by walking session entries and mapping tool calls via `pi.getAllTools()` / `pi.getCommands()`.
+**Step-by-step when `/usage` opens:**
+
+| Step | Module | What happens |
+|------|--------|--------------|
+| 1 | `index.ts` | Creates `UsageView`, binds TUI, kicks off scan + quota fetch |
+| 2a | `cache.ts` | Loads `usage-cache.json`; skips unchanged session files (mtime + size) |
+| 2b | `aggregate.ts` | Parses new/changed JSONL → attributes each turn to model, project, skill, plugin, tool |
+| 2c | `config.ts` + `prices.ts` | Applies budgets, excludes, and manual/bundled model prices at parse time |
+| 3 | `provider.ts` | Fetches upstream quota (ZAI plan %, Codex headers, etc.) + merges captured rate limits |
+| 4 | `view.ts` | `windowize()` slices `Report` by selected window; renders Overview / Models / … / Wrapped |
+| 5 | `cache.ts` | Writes updated scan cache back to disk |
+
+**Background events (outside the panel):**
+
+| Event | Effect |
+|-------|--------|
+| `session_start` | Rebuild `AttributionMaps` from `pi.getAllTools()` / `pi.getCommands()` |
+| `after_provider_response` | Capture rate-limit headers for next quota refresh |
+| `model_select` | Update active provider; refresh spend widget |
+| `turn_end` | Refresh always-on widget from current session branch |
+
+**Attribution model:** skills, plugins, tools, and models are *independent characteristics* — one turn can count toward several buckets (like Claude Code). Percentages across categories do not sum to 100%.
 
 ### pi-multi-skill flow
 
@@ -276,9 +363,7 @@ flowchart LR
   READ["Read SKILL.md files"]
   SEND["pi.sendUserMessage()\ncombined skill blocks"]
 
-  CMD --> DISC
-  DISC --> READ
-  READ --> SEND
+  CMD --> DISC --> READ --> SEND
 ```
 
 ### Extension API surface
@@ -288,11 +373,13 @@ Both packages are standard pi extensions — a default-export factory receiving 
 | API used | pi-usage | pi-multi-skill |
 |----------|----------|----------------|
 | `pi.registerCommand()` | `/usage`, `/usage-*`, `/usage-config`, … | `/skills` |
-| `pi.on("session_start")` | refresh scan | clear skill cache |
+| `pi.on("session_start")` | rebuild attribution maps | clear skill cache |
+| `pi.on("after_provider_response")` | capture rate-limit headers | — |
+| `pi.on("model_select")` / `turn_end` | refresh spend widget | — |
 | `pi.on("input")` | — | legacy `/skills:` / `/skill:+` formats |
-| `pi.getCommands()` | tool/plugin attribution | skill discovery |
+| `pi.getCommands()` / `getAllTools()` | tool/plugin attribution | skill discovery |
 | `pi.sendUserMessage()` | — | inject combined skills |
-| `pi.ui.setWidget()` | spend widget | — |
+| `pi.ui.custom()` / `setWidget()` | panel + always-on widget | — |
 
 ---
 

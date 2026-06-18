@@ -7,23 +7,59 @@ tools, and projects**, bucketed by time window — with always-visible **5-hour*
 and **weekly** quota bars. Mirrors the layout and wording of Claude Code's
 `/usage` screen.
 
+### Overview (`/usage`)
+
+Seven views via `Tab` or `1`–`7`. The default Overview shows quota bars, headline stats, active provider, top consumer, a trend sparkline, and compact top models.
+
 ```
-┌─ Usage ─────────────────────────────── 5H │ DAY │ WEEK │ ALL ─┐
+────────────────────────────────────────────────────────────────
+ Usage ────────────────────────────────  5H │ DAY │ WEEK │ ALL
 
-  Showing: last 24 hours            last activity 2m ago · 12 sessions
+   1 Overview │ 2 Models │ 3 Daily │ 4 Stats │ 5 Hourly │ 6 Agents │ 7 Wrapped
 
-  5-hour quota   ████████░░░░░  $4.23 / $20.00 (21%)
-  Weekly quota   ██░░░░░░░░░░░  $12.40 / $100.00 (12%)
+  Showing: last 24 hours              last activity 2m ago  ·  254 sessions
 
-  ↑1.24M ↓245k ⚡3.10M $4.23   · 128 turns · 1.69M total tokens
+  5-hour quota     ████░░░░░░░░░░░░  12% used / 145.9M · 88% left · resets 4h 58m
+  Weekly quota     ██████░░░░░░░░░░  55% used / 176.7M · 45% left · resets 11h 49m
+  live from provider
+  max plan · upstream quota
+  Web searches  0/4000
+
+  ↑51.8M  ↓3.7M  ⚡97.7M  145.9M tokens   ·  855 turns
+
+  Active provider
+  zai / glm-5.2  api.z.ai  key ✓
+  Rate limits (live, from last response)
+  tokens/min       ████████░░░░  12.4K/16K  resets in 42s
 
   Top consumer
-  42% of usage came from model claude-sonnet-4-5
+  73% of usage came from model glm-5.2
 
-  Models                          %        cost
-    claude-sonnet-4-5          42%  ████░░░░░  $1.78
-    gpt-5                       8%  █░░░░░░░░  $0.34
-  …
+  Trend  ▁▂▃▅▆▅▄▃▂▁▂▃  Jun 10 → Jun 17
+
+  Top models                        %   tokens
+  glm-5.2                        73% ███████████████ 106.5M
+  glm-5.1                        11% ██░░░░░░░░░░░░░  16.1M
+  gpt-5.5                         8% █░░░░░░░░░░░░░░  11.2M
+
+  → Tab for views · 2 Models · 3 Daily · 5 Hourly · 7 Wrapped AI
+```
+
+### Models view (`/usage-models`)
+
+Full attribution breakdown — model table with tok/s, Skills, Plugin usage (with contributing skills/tools), Tools, and Projects.
+
+```
+  Models                            %   tokens   tok/s
+  glm-5.2                        73% ███████████████ 106.5M   142/s
+  glm-5.1                        11% ██░░░░░░░░░░░░░  16.1M    98/s
+  tok/s · est. avg output speed
+
+  Plugin usage                      %   tokens  via
+  frontend-design                12% ██░░░░░░ 720k   frontend-design
+  bmad                           12% ██░░░░░░ 720k   bmad-master, analyst
+  pi-subagents                    7% █░░░░░░░ 450k   subagent
+  (core / no plugin)             59% ██████░░ 3.6M   builtin tools only
 ```
 
 ## Views
