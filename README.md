@@ -9,170 +9,290 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![pi-package](https://img.shields.io/badge/keyword-pi--package-blue)](https://pi.dev/packages)
 
-**Two production-ready extensions** — install with `pi install`, no build step.
-
 </div>
-
----
-
-## 📦 What's inside
-
-| Extension | npm | Description |
-|-----------|-----|-------------|
-| **📊 pi-usage** | [`@zaganjade/pi-usage`](https://www.npmjs.com/package/@zaganjade/pi-usage) | Claude Code-style `/usage` panel — live 5H/weekly quota bars, cost & token breakdowns by model/skill/plugin/tool/project, upstream provider quota for ZAI & OpenAI Codex |
-| **⚡ pi-multi-skill** | [`@zaganjade/pi-multi-skill`](https://www.npmjs.com/package/@zaganjade/pi-multi-skill) | Load multiple skills at once via `/skills` — comma-separated, with autocomplete & inline instructions |
-
----
-
-## 📊 pi-usage
-
-A real-time usage dashboard for pi. Mirrors the look and feel of Claude Code's `/usage` screen — but works with **any provider** (ZAI, OpenAI Codex, OpenRouter, Anthropic, custom routers, and more).
-
-### What you see
-
-```
-┌─ Usage ──────────────────────────────────────────── 5H │ DAY │ WEEK │ ALL ─┐
-
-  Showing: last 24 hours                   last activity 2m ago · 254 sessions
-
-  5-hour quota     ████░░░░░░░░░░░ 12% used / 145.9M · 88% left · resets 4h 58m
-  Weekly quota     ██████░░░░░░░░░ 55% used / 176.7M · 45% left · resets 11h 49m
-  live from provider  max plan · upstream quota
-  Web searches  0/4000
-
-  ↑51.8M  ↓3.7M  ⚡97.7M  $0.201   ·  855 turns
-
-  Active provider
-  zai / glm-5.2  api.z.ai  key ✓
-
-  Top consumer
-  100% of usage came from model gpt-5.5
-
-  Plugin usage
-  frontend-design          12% ██░░░░░░ 720k  frontend-design
-  bmad                     12% ██░░░░░░ 720k  bmad-master, analyst
-  pi-subagents              7% █░░░░░░░ 450k  subagent
-  (core / no plugin)       59% ██████░░ 3.6M  builtin tools only
-
-  Models                          %        tokens
-  glm-5.2                      73% ███████████████ 81.2M
-  glm-5.1                      11% ██░░░░░░░░░░░░░ 12.1M
-```
-
-### Key features
-
-- **📊 Live upstream quota** — fetches real 5H/weekly used/remaining % directly from ZAI (`/api/monitor/usage/quota/limit`) and OpenAI Codex (`/backend-api/wham/usage` via pi's AuthStorage). No token management — uses the **same credentials pi authenticates with**.
-- **⏱️ Real-time rate-limit windows** — captures `x-ratelimit-*` / `x-codex-*` / `anthropic-ratelimit-*` headers from every provider HTTP response via the `after_provider_response` event. Shows tokens/min, requests/min, with live reset countdowns.
-- **🔍 Full attribution breakdown** — which **models**, **skills**, **plugins**, **tools**, and **projects** consumed your quota, ranked by usage with mini progress bars.
-- **🧩 Plugin usage analysis** — see which plugins drive your usage the most, with per-plugin contributing skills/tools. Includes an honest "(core / no plugin)" remainder for builtin-only turns.
-- **💎 Adaptive units** — automatically shows **USD** for priced providers (Anthropic, OpenAI metered) and **tokens** for token-priced providers (ZAI/GLM, custom routers) where cost is always 0.
-- **🎨 Combined bar format** — upstream `% used` + session cost/tokens + `% left` + reset countdown, all in one line.
-- **📟 Always-on widget** — optional compact spend summary above the editor (`/usage-widget`).
-- **⌨️ Fully keyboard-driven** — `5`/`d`/`w`/`a` to switch windows, `j`/`k` to scroll, `r` to refresh, `q` to close.
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `/usage` | Open the interactive usage panel |
-| `/usage-config` | Set 5H/weekly USD & token budgets (for fallback session-derived bars) |
-| `/usage-widget` | Toggle compact always-on spend widget above the editor |
-
-### Provider quota support
-
-| Provider | Source | What it shows |
-|----------|--------|---------------|
-| **ZAI (GLM coding plans)** | `api.z.ai` REST endpoint | 5H + weekly used %, reset countdown, web-search quota, plan tier |
-| **OpenAI Codex (ChatGPT Plus/Pro)** | pi's AuthStorage OAuth → `chatgpt.com/backend-api/wham/usage` | 5H + weekly used %, reset countdown, credits balance, plan tier |
-| **OpenRouter** | `/api/v1/credits` | Account credits remaining |
-| **OpenAI (metered API)** | `/v1/organization/costs` | 5H + 7d spend, monthly hard limit |
-| **Any provider** | `after_provider_response` headers | Rate-limit windows with live reset countdown |
-
-> **For subscriptions (ZAI, Codex):** the bars come **directly from the upstream** — no budget config needed. These ARE your plan's real 5h/weekly limits.
->
-> **For other providers:** the bars use session-aggregated usage against optional budgets set via `/usage-config`.
-
----
-
-## ⚡ pi-multi-skill
-
-Load multiple skills in a single command. Pi's built-in `/skill:name` only loads one at a time — this extension lets you chain them with commas.
-
-### Usage
-
-```bash
-# Load multiple skills + pass instructions in one go
-/skills frontend-design,motion-design Create an animated landing page
-
-# View all available skills with descriptions
-/skills
-```
-
-### Features
-
-- **🔗 Comma-separated chaining** — `/skills skill1,skill2,skill3 [instructions]`
-- **📋 Smart autocomplete** — typing `/skills ` shows all available skills with full descriptions; selecting one appends a comma so you keep chaining
-- **🔄 Legacy format support** — `/skills:name1,name2` and `/skill:name1+name2` also work
-- **🌐 Universal skill discovery** — finds skills from all sources: user-level, project-level, npm packages, git packages
-- **📝 Inline instructions** — anything after the skill list is passed to the agent alongside the skill content
 
 ---
 
 ## 🚀 Install
 
-Pi extensions from npm must be registered with **`pi install`**. Plain `npm install` (global or local) only downloads files — pi will **not** load the extension unless it is listed under `"packages"` in `~/.pi/agent/settings.json`.
+Pi extensions **must be registered with `pi install`**. Plain `npm install` only downloads files — pi will not load them unless they appear under `"packages"` in `~/.pi/agent/settings.json`.
 
-### From npm (recommended)
+### Step 1 — Install from npm (recommended)
 
 ```bash
 pi install npm:@zaganjade/pi-usage
 pi install npm:@zaganjade/pi-multi-skill
+```
+
+### Step 2 — Reload pi
+
+Inside pi, run:
+
+```
 /reload
 ```
 
-Verify:
+Or restart the pi CLI.
+
+### Step 3 — Verify
 
 ```bash
 pi list
 ```
 
-You should see both packages with their install paths. Then `/usage` and `/skills` appear in slash autocomplete.
+You should see both packages with install paths. Then open pi and type `/` — `/usage` and `/skills` should appear in slash autocomplete.
 
-Quick test without saving to settings:
+### Other install methods
 
-```bash
-pi -e npm:@zaganjade/pi-usage
-pi -e npm:@zaganjade/pi-multi-skill
-```
-
-### From GitHub
+**GitHub (whole monorepo):**
 
 ```bash
 pi install git:github.com/ZaganJade/pi-extension
 /reload
 ```
 
-### From local path
+**Local path (development):**
 
 ```bash
 git clone https://github.com/ZaganJade/pi-extension.git
-pi install ./pi-extension/usage
-pi install ./pi-extension/multi-skill
+cd pi-extension
+pi install ./usage
+pi install ./multi-skill
 /reload
+```
+
+**Try without saving to settings:**
+
+```bash
+pi -e npm:@zaganjade/pi-usage
+pi -e npm:@zaganjade/pi-multi-skill
 ```
 
 ### ⚠️ Common mistakes
 
 | What people try | Why it fails |
 |-----------------|--------------|
-| `npm install -g @zaganjade/pi-usage` | Package lands in npm's global folder; pi never registers it |
-| Adding `npm:@zaganjade/pi-usage` to `"extensions"` in settings | Wrong settings key — npm packages belong in `"packages"` |
+| `npm install -g @zaganjade/pi-usage` | Package lands in npm's folder; pi never registers it |
+| Adding `npm:...` to `"extensions"` in settings | Wrong key — npm packages belong in `"packages"` |
 | Install but forget `/reload` | Extension not loaded until reload or restart |
 | Extension disabled in `pi config` | Re-enable the extension resource for that package |
 
-After installing, run `/reload` in pi (or restart). **No build step** — pi loads TypeScript directly via jiti.
+> No build step — pi loads TypeScript directly via jiti.
 
-See also: [usage/README.md](./usage/README.md) · [multi-skill/README.md](./multi-skill/README.md)
+Per-extension docs: [usage/README.md](./usage/README.md) · [multi-skill/README.md](./multi-skill/README.md)
+
+---
+
+## 🧠 How it works (pi package system)
+
+This repo is a **monorepo of two independent [pi packages](https://pi.dev/packages)**. Each package ships its own `package.json` with a `pi.extensions` manifest. Pi's package manager reads that manifest, installs the tarball to `~/.pi/agent/npm/`, and loads the declared entry points at startup.
+
+```mermaid
+flowchart LR
+  subgraph install ["Install"]
+    A["pi install npm:@zaganjade/pi-usage"]
+    B["pi install npm:@zaganjade/pi-multi-skill"]
+  end
+
+  subgraph settings ["~/.pi/agent/settings.json"]
+    C["packages[]"]
+  end
+
+  subgraph disk ["~/.pi/agent/npm/node_modules/"]
+    D["@zaganjade/pi-usage"]
+    E["@zaganjade/pi-multi-skill"]
+  end
+
+  subgraph runtime ["Pi CLI at runtime"]
+    F["Resource loader"]
+    G["Extension runner"]
+    H["/usage · /skills commands"]
+  end
+
+  A --> C
+  B --> C
+  C --> D
+  C --> E
+  D --> F
+  E --> F
+  F --> G
+  G --> H
+```
+
+| Mechanism | Settings key | What it loads |
+|-----------|--------------|---------------|
+| `pi install npm:...` | `"packages"` | npm/git packages with `pi` manifest |
+| Local path in settings | `"extensions"` | Folder or file on disk (dev workflow) |
+| Auto-discovery | — | `~/.pi/agent/extensions/` |
+
+Both extensions are **standalone npm packages** — install one or both. They do not depend on each other.
+
+---
+
+## 📦 What's inside
+
+| Extension | npm | One-liner |
+|-----------|-----|-----------|
+| **📊 pi-usage** | [`@zaganjade/pi-usage`](https://www.npmjs.com/package/@zaganjade/pi-usage) | Claude Code-style `/usage` dashboard — quota bars, cost/token breakdowns, live upstream provider quota |
+| **⚡ pi-multi-skill** | [`@zaganjade/pi-multi-skill`](https://www.npmjs.com/package/@zaganjade/pi-multi-skill) | Chain multiple skills in one command via `/skills skill1,skill2` |
+
+---
+
+## 📊 pi-usage
+
+Real-time usage dashboard for pi. Mirrors Claude Code's `/usage` screen but works with **any provider** — ZAI, OpenAI Codex, OpenRouter, Anthropic, custom routers, and more.
+
+### Preview
+
+```
+┌─ Usage ──────────────────────────────── 5H │ DAY │ WEEK │ ALL ─┐
+
+  Showing: last 24 hours                   last activity 2m ago · 254 sessions
+
+  5-hour quota     ████░░░░░░░░░░░ 12% used / 145.9M · 88% left · resets 4h 58m
+  Weekly quota     ██████░░░░░░░░░ 55% used / 176.7M · 45% left · resets 11h 49m
+
+  ↑51.8M  ↓3.7M  ⚡97.7M  $0.201   ·  855 turns
+
+  Top consumer
+  100% of usage came from model gpt-5.5
+
+  Models                          %        tokens
+  glm-5.2                      73% ███████████████ 81.2M
+  glm-5.1                      11% ██░░░░░░░░░░░░░ 12.1M
+```
+
+### Features
+
+- **Live upstream quota** — 5H/weekly bars from ZAI and OpenAI Codex using pi's own credentials
+- **Rate-limit windows** — captures provider HTTP headers on every response with live reset countdowns
+- **Full attribution** — breakdown by model, skill, plugin, tool, and project
+- **Seven TUI views** — Overview, Models, Daily, Stats, Hourly, Agents, Wrapped AI
+- **Adaptive units** — USD for priced providers, tokens for token-priced providers (ZAI/GLM)
+- **Incremental cache** — session scan cached to `~/.pi/agent/usage-cache.json` for fast reopen
+- **Always-on widget** — optional compact spend line above the editor (`/usage-widget`)
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `/usage` | Open the interactive usage panel |
+| `/usage-models` · `/usage-daily` · `/usage-stats` · … | Jump directly to a specific view |
+| `/usage-config` | Set 5H/weekly USD & token budgets |
+| `/usage-pricing` | Set manual per-model prices for token-priced providers |
+| `/usage-widget` | Toggle compact always-on spend widget |
+
+### Provider quota
+
+| Provider | Source |
+|----------|--------|
+| **ZAI (GLM plans)** | `api.z.ai` subscription quota API |
+| **OpenAI Codex** | Live rate-limit headers from pi's Codex requests |
+| **OpenRouter** | `/api/v1/credits` |
+| **OpenAI (metered)** | `/v1/organization/costs` |
+| **Any provider** | `after_provider_response` rate-limit headers |
+
+---
+
+## ⚡ pi-multi-skill
+
+Pi's built-in `/skill:name` loads one skill at a time. This extension lets you **chain multiple skills** in a single slash command.
+
+### Usage
+
+```
+/skills frontend-design,motion-design Create an animated landing page
+/skills test-driven-development,systematic-debugging Fix the failing tests
+/skills                              → show help + list available skills
+```
+
+### Features
+
+- **Comma-separated chaining** — `/skills skill1,skill2,skill3 [instructions]`
+- **Smart autocomplete** — shows all skills with descriptions; selecting one appends a comma for chaining
+- **Universal discovery** — finds skills from user, project, npm, and git sources via `pi.getCommands()`
+- **Legacy formats** — `/skills:name1,name2` and `/skill:name1+name2` also supported
+- **Inline instructions** — text after the skill list is passed to the agent alongside skill content
+
+---
+
+## 🏗️ Architecture
+
+Monorepo layout:
+
+```
+pi-extension/
+├── usage/                  → @zaganjade/pi-usage
+│   └── src/
+│       ├── index.ts        entry — commands, scan orchestration, widget
+│       ├── view.ts         TUI panel (UsageView)
+│       ├── aggregate.ts    session scanning + attribution
+│       ├── provider.ts     live quota fetch + rate-limit parsing
+│       ├── config.ts       ~/.pi/agent/usage.json
+│       ├── cache.ts        incremental scan cache
+│       ├── prices.ts       default model price table
+│       └── format.ts       token/currency/bar helpers
+└── multi-skill/            → @zaganjade/pi-multi-skill
+    └── src/
+        └── index.ts        /skills command, autocomplete, input handler
+```
+
+### pi-usage data flow
+
+```mermaid
+flowchart TB
+  subgraph sources ["Data sources"]
+    S1["~/.pi/agent/sessions/*.jsonl"]
+    S2["Provider APIs · ZAI / Codex / OpenRouter"]
+    S3["after_provider_response headers"]
+  end
+
+  subgraph core ["usage/src"]
+    AGG["aggregate.ts\nscan + attribute turns"]
+    CACHE["cache.ts\nmtime-keyed cache"]
+    PROV["provider.ts\nlive quota + rate limits"]
+    VIEW["view.ts\nUsageView TUI"]
+    IDX["index.ts\ncommands + widget"]
+  end
+
+  S1 --> AGG
+  AGG --> CACHE
+  CACHE --> VIEW
+  S2 --> PROV
+  S3 --> PROV
+  PROV --> VIEW
+  IDX --> VIEW
+  IDX --> AGG
+```
+
+Each assistant turn is attributed to **model**, **project**, **skill**, **plugin**, and **tool** by walking session entries and mapping tool calls via `pi.getAllTools()` / `pi.getCommands()`.
+
+### pi-multi-skill flow
+
+```mermaid
+flowchart LR
+  CMD["/skills a,b,c instructions"]
+  DISC["discoverSkillsFromPi()\npi.getCommands()"]
+  READ["Read SKILL.md files"]
+  SEND["pi.sendUserMessage()\ncombined skill blocks"]
+
+  CMD --> DISC
+  DISC --> READ
+  READ --> SEND
+```
+
+### Extension API surface
+
+Both packages are standard pi extensions — a default-export factory receiving `ExtensionAPI`:
+
+| API used | pi-usage | pi-multi-skill |
+|----------|----------|----------------|
+| `pi.registerCommand()` | `/usage`, `/usage-*`, `/usage-config`, … | `/skills` |
+| `pi.on("session_start")` | refresh scan | clear skill cache |
+| `pi.on("input")` | — | legacy `/skills:` / `/skill:+` formats |
+| `pi.getCommands()` | tool/plugin attribution | skill discovery |
+| `pi.sendUserMessage()` | — | inject combined skills |
+| `pi.ui.setWidget()` | spend widget | — |
 
 ---
 
@@ -194,32 +314,13 @@ See also: [usage/README.md](./usage/README.md) · [multi-skill/README.md](./mult
 
 | Key | Description |
 |-----|-------------|
-| `fiveHourLimit` / `weeklyLimit` | USD budgets for priced providers (Anthropic, OpenAI metered) |
-| `fiveHourTokenLimit` / `weeklyTokenLimit` | Token budgets for token-priced providers (ZAI/GLM, custom routers) |
+| `fiveHourLimit` / `weeklyLimit` | USD budgets for priced providers |
+| `fiveHourTokenLimit` / `weeklyTokenLimit` | Token budgets for token-priced providers (ZAI/GLM) |
 | `showWidget` | Compact one-line spend summary above the editor |
 | `excludeProjects` | Project cwd prefixes to skip during aggregation |
 | `maxSessions` | Safety cap on session files to scan |
 
----
-
-## 🏗️ Architecture
-
-### pi-usage (6 files)
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `index.ts` | ~270 | Entry point — command registration, async scan orchestration, widget |
-| `view.ts` | ~780 | Interactive TUI panel (`UsageView`) — quota bars, breakdowns, scrolling |
-| `aggregate.ts` | ~380 | Session scanning, time-windowing, attribution engine |
-| `provider.ts` | ~740 | Active-provider detection, rate-limit parsing, live quota fetch (ZAI/Codex/OpenRouter/OpenAI) |
-| `config.ts` | ~65 | Load/save `usage.json` |
-| `format.ts` | ~100 | Token/currency/bar/label formatting helpers |
-
-### pi-multi-skill (1 file)
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `index.ts` | ~350 | `/skills` command, autocomplete, input handler for legacy formats |
+Full reference: [usage/README.md](./usage/README.md)
 
 ---
 
