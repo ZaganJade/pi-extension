@@ -12,7 +12,7 @@
  * walk its entries in append order, and attribute each assistant turn to:
  *   - a model        (from message.model)
  *   - a project      (from the session header cwd)
- *   - a skill        (detected via parseSkillBlock on the preceding user msg)
+ *   - skill(s)       (detected via parseSkillBlocks on the preceding user msg)
  *   - tools/plugins  (from the tool calls inside the assistant message)
  *
  * Important: skills, plugins, tools and models are *independent characteristics*
@@ -177,10 +177,48 @@ export interface TurnEntry {
 	project: string;
 	cost: number;
 	usage: Usage;
+	/** Primary skill (first in a multi-skill activation). */
 	skill: string | null;
+	/** All skills from multi-skill or single-skill activation. */
+	skills: string[];
+	/** Bundle names from multi-skill (@bundle) activation. */
+	bundles: string[];
 	tools: string[];
 	/** Estimated generation time for this turn in ms (0 when not estimable). */
 	genMs: number;
+}
+
+/**
+ * Backfill fields missing on legacy cached turns (pre multi-skill cache entries).
+ * Safe to call on every cache hit and before aggregating.
+ */
+export function normalizeTurnEntry(entry: TurnEntry): TurnEntry {
+	const skills = Array.isArray(entry.skills)
+		? entry.skills
+		: entry.skill
+			? [entry.skill]
+			: [];
+	const bundles = Array.isArray(entry.bundles) ? entry.bundles : [];
+	const tools = Array.isArray(entry.tools) ? entry.tools : [];
+	if (
+		skills === entry.skills &&
+		bundles === entry.bundles &&
+		tools === entry.tools
+	) {
+		return entry;
+	}
+	return { ...entry, skills, bundles, tools };
+}
+
+/** Skills attributed to a turn (multi-skill aware, legacy-safe). */
+export function skillsForTurn(turn: TurnEntry): string[] {
+	if (Array.isArray(turn.skills) && turn.skills.length > 0) return turn.skills;
+	return turn.skill ? [turn.skill] : [];
+}
+
+/** Bundles attributed to a turn (multi-skill @bundle activation). */
+export function bundlesForTurn(turn: TurnEntry): string[] {
+	return Array.isArray(turn.bundles) ? turn.bundles : [];
 }
 
 /** Full raw report built once, then windowed on demand. */
@@ -217,6 +255,32 @@ export function buildAttributionMaps(pi: ExtensionAPI): AttributionMaps {
 	}
 
 	return { toolToPlugin, skillToPlugin };
+}
+
+/** Extract bundle names from manually_attached_skills bundles="..." attribute. */
+export function parseSkillBundles(text: string): string[] {
+	const match = text.match(
+		/<manually_attached_skills[^>]*\sbundles="([^"]+)"/,
+	);
+	if (!match) return [];
+	return match[1]
+		.split(",")
+		.map((b) => b.trim().replace(/^@/, ""))
+		.filter((b) => b.length > 0);
+}
+
+/** Extract all skill names from user content (multi-skill aware). */
+export function parseSkillBlocks(text: string): string[] {
+	const names: string[] = [];
+	const re = /<skill\s+name="([^"]+)"/g;
+	let match: RegExpExecArray | null;
+	while ((match = re.exec(text)) !== null) {
+		names.push(match[1]);
+	}
+	if (names.length > 0) return [...new Set(names)];
+
+	const single = parseSkillBlock(text);
+	return single ? [single.name] : [];
 }
 
 function textOfUserContent(
@@ -304,8 +368,9 @@ export async function scanSessions(
 				cached.mtimeMs === mtimeMs &&
 				cached.size === size
 			) {
-				// Unchanged file → reuse its attributed turns, no read/parse.
-				for (const e of cached.entries) entries.push(e);
+				for (const e of cached.entries) {
+					entries.push(normalizeTurnEntry(e));
+				}
 				nextSessions[info.path] = cached;
 				continue;
 			}
@@ -347,6 +412,8 @@ function collectFromSession(
 	const sessionEntries: SessionEntry[] = sm.getEntries();
 
 	let currentSkill: string | null = null;
+	let currentSkills: string[] = [];
+	let currentBundles: string[] = [];
 	let added = 0;
 	// Timestamp (ms) of the previous session entry, used to estimate how long an
 	// assistant turn took to generate (request-start ≈ previous entry time).
@@ -366,8 +433,9 @@ function collectFromSession(
 
 		if (message.role === "user") {
 			const text = textOfUserContent(message.content).trimStart();
-			const skill = parseSkillBlock(text);
-			currentSkill = skill ? skill.name : null;
+			currentSkills = parseSkillBlocks(text);
+			currentSkill = currentSkills[0] ?? null;
+			currentBundles = parseSkillBundles(text);
 			if (entryTs > 0) prevEntryTs = entryTs;
 			continue;
 		}
@@ -411,6 +479,8 @@ function collectFromSession(
 			cost: effUsage.cost.total,
 			usage: effUsage,
 			skill: currentSkill,
+			skills: currentSkills,
+			bundles: currentBundles,
 			tools,
 			genMs,
 		});
@@ -465,6 +535,7 @@ export interface WindowedReport {
 	weekly: Bucket;
 	byModel: Map<string, Bucket>;
 	bySkill: Map<string, Bucket>;
+	byBundle: Map<string, Bucket>;
 	byPlugin: Map<string, Bucket>;
 	/** Per-plugin detail: which skills/tools drove each plugin's usage. */
 	pluginDetail: Map<string, PluginContribution>;
@@ -493,6 +564,7 @@ export function windowize(
 	const weekly = emptyBucket();
 	const byModel = new Map<string, Bucket>();
 	const bySkill = new Map<string, Bucket>();
+	const byBundle = new Map<string, Bucket>();
 	const byPlugin = new Map<string, Bucket>();
 	const pluginDetail = new Map<string, PluginContribution>();
 	const byCore = emptyBucket();
@@ -517,8 +589,16 @@ export function windowize(
 		addBucket(total, turn.usage, turn.genMs);
 		bump(byModel, turn.model, turn.usage, turn.genMs);
 
-		// Skill attribution (independent characteristic).
-		if (turn.skill) bump(bySkill, turn.skill, turn.usage);
+		// Skill attribution (independent characteristic) — all skills in multi-skill.
+		const turnSkills = skillsForTurn(turn);
+		for (const skillName of turnSkills) {
+			bump(bySkill, skillName, turn.usage);
+		}
+
+		// Bundle attribution from @bundle activations.
+		for (const bundleName of bundlesForTurn(turn)) {
+			bump(byBundle, `@${bundleName}`, turn.usage);
+		}
 
 		// Plugin attribution: each turn counts ONCE per distinct plugin involved,
 		// whether via a tool it owns or a skill it bundles (deduped, no double count).
@@ -536,14 +616,15 @@ export function windowize(
 			}
 			return entry;
 		};
-		for (const toolName of turn.tools) {
+		const turnTools = Array.isArray(turn.tools) ? turn.tools : [];
+		for (const toolName of turnTools) {
 			bump(byTool, toolName, turn.usage);
 			const owner = maps.toolToPlugin.get(toolName);
 			if (owner) notePlugin(owner).tools.add(toolName);
 		}
-		if (turn.skill) {
-			const skillOwner = maps.skillToPlugin.get(turn.skill);
-			if (skillOwner) notePlugin(skillOwner).skills.add(turn.skill);
+		for (const skillName of turnSkills) {
+			const skillOwner = maps.skillToPlugin.get(skillName);
+			if (skillOwner) notePlugin(skillOwner).skills.add(skillName);
 		}
 		if (turnPlugins.size === 0) {
 			// No plugin tool or plugin skill involved → core pi usage.
@@ -576,6 +657,7 @@ export function windowize(
 		weekly,
 		byModel,
 		bySkill,
+		byBundle,
 		byPlugin,
 		pluginDetail,
 		byCore,

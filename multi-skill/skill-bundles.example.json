@@ -1,0 +1,17 @@
+{
+	"bundles": {
+		"my-stack": {
+			"description": "Only skills installed on this machine — no BMAD required",
+			"skills": ["frontend-design", "create-rule"],
+			"order": "explicit",
+			"default_mode": "meta"
+		},
+		"my-team-planning": {
+			"description": "Custom team planning workflow (requires BMAD)",
+			"skills": ["bmad-master", "analyst", "pm"],
+			"order": "process-first",
+			"default_mode": "meta",
+			"requires": "BMAD Method"
+		}
+	}
+}

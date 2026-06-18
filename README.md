@@ -133,78 +133,86 @@ Both extensions are **standalone npm packages** — install one or both. They do
 
 | Extension | npm | One-liner |
 |-----------|-----|-----------|
-| **📊 pi-usage** | [`@zaganjade/pi-usage`](https://www.npmjs.com/package/@zaganjade/pi-usage) | Claude Code-style `/usage` dashboard — quota bars, cost/token breakdowns, live upstream provider quota |
-| **⚡ pi-multi-skill** | [`@zaganjade/pi-multi-skill`](https://www.npmjs.com/package/@zaganjade/pi-multi-skill) | Chain multiple skills in one command via `/skills skill1,skill2` |
+| **📊 pi-usage** | [`@zaganjade/pi-usage`](https://www.npmjs.com/package/@zaganjade/pi-usage) | Claude Code-style `/usage` dashboard — Pi-chan navigation, quota bars, attribution, Wrapped AI year-in-review |
+| **⚡ pi-multi-skill** | [`@zaganjade/pi-multi-skill`](https://www.npmjs.com/package/@zaganjade/pi-multi-skill) | Chain skills via `/skills` — bundles, load modes, BMAD `--auto`, universal discovery |
 
 ---
 
 ## 📊 pi-usage
 
-Real-time usage dashboard for pi. Mirrors Claude Code's `/usage` screen but works with **any provider** — ZAI, OpenAI Codex, OpenRouter, Anthropic, custom routers, and more.
+Real-time usage dashboard for pi. Mirrors Claude Code's `/usage` screen but works with **any provider** — ZAI, OpenAI Codex, OpenRouter, Anthropic, custom routers, and more. The panel includes **Pi-chan**, a lightweight mascot that guides navigation and appears in the Wrapped AI year-in-review.
 
 ### Preview — Overview (`/usage`)
 
-Seven views via `Tab` or `1`–`7`. Overview shows always-on quota bars, headline stats, active provider, top consumer, a 30-day trend sparkline, and compact top models.
+Seven views via `Tab` or `1`–`7`. A **two-row menu** shows icon tabs plus Pi-chan with a contextual hint. Overview shows always-on quota bars, headline stats, active provider, top consumer, a 30-day trend sparkline, and compact top models.
 
 ```
 ────────────────────────────────────────────────────────────────
  Usage ────────────────────────────────  5H │ DAY │ WEEK │ ALL
 
-   1 Overview │ 2 Models │ 3 Daily │ 4 Stats │ 5 Hourly │ 6 Agents │ 7 Wrapped
+╭─ views  ◈1 Overview │ ◎2 Models │ … │ ✦7 Wrapped  ─────────╮
+  (◕‿◕)  Pi-chan  Quota bars & headline stats…    Tab · 1-7 jump
 
   Showing: last 24 hours              last activity 2m ago  ·  254 sessions
 
-  5-hour quota     ████░░░░░░░░░░░░  12% used / 145.9M · 88% left · resets 4h 58m
-  Weekly quota     ██████░░░░░░░░░░  55% used / 176.7M · 45% left · resets 11h 49m
-  live from provider
-  max plan · upstream quota
-  Web searches  0/4000
-
+  5-hour quota     ████░░░░░░░░░░░░  12% used / 145.9M · 88% left
   ↑51.8M  ↓3.7M  ⚡97.7M  145.9M tokens   ·  855 turns
-
-  Active provider
-  zai / glm-5.2  api.z.ai  key ✓
-  Rate limits (live, from last response)
-  tokens/min       ████████░░░░  12.4K/16K  resets in 42s
 
   Top consumer
   73% of usage came from model glm-5.2
 
-  Trend  ▁▂▃▅▆▅▄▃▂▁▂▃  Jun 10 → Jun 17
-
-  Top models                        %   tokens
-  glm-5.2                        73% ███████████████ 106.5M
-  glm-5.1                        11% ██░░░░░░░░░░░░░  16.1M
-  gpt-5.5                         8% █░░░░░░░░░░░░░░  11.2M
-
-  → Tab for views · 2 Models · 3 Daily · 5 Hourly · 7 Wrapped AI
+  → Tab or 1-7 to explore · ✦7 opens Wrapped AI
 ```
 
 ### Preview — Models view (`/usage-models`)
 
-Full breakdown: model table with tok/s, plus Skills, Plugin usage (with contributing skills/tools), Tools, and Projects.
+Full breakdown: model table with tok/s, Skills, **Bundles** (`@debug`, `@bmad-planning`, …), Plugin usage, **Tools** (glyph + bar per tool), and Projects. Multi-skill chains from **pi-multi-skill** attribute every skill and bundle separately.
 
 ```
   Models                            %   tokens   tok/s
   glm-5.2                        73% ███████████████ 106.5M   142/s
-  glm-5.1                        11% ██░░░░░░░░░░░░░  16.1M    98/s
-  tok/s · est. avg output speed
 
-  Plugin usage                      %   tokens  via
-  frontend-design                12% ██░░░░░░ 720k   frontend-design
-  bmad                           12% ██░░░░░░ 720k   bmad-master, analyst
-  pi-subagents                    7% █░░░░░░░ 450k   subagent
-  (core / no plugin)             59% ██████░░ 3.6M   builtin tools only
+  Skills                            %   tokens
+  systematic-debugging             18% ███░░░░░░░░░░░░  25.4M
+  frontend-design                  12% ██░░░░░░░░░░░░░  16.1M
+
+  Bundles                           %   tokens
+  @debug                           22% ████░░░░░░░░░░░  31.1M
+  @cc-feature                      15% ███░░░░░░░░░░░░  21.0M
+
+  ⚙ Pi-chan tracked these tool calls
+  Tools                             %   tokens
+  ↳ read                         34% ██████░░░░░░░░░  48.2M
+  $ bash                         22% ████░░░░░░░░░░░  31.1M
+```
+
+### Preview — Wrapped AI (`/usage-wrapped`)
+
+Year-in-review with report-style sections, Stats-style **monthly heatmap**, rankings, and a Pi-chan footer caption. Mascot pose reacts to streaks and peak hours.
+
+```
+  Wrapped  2025  ◂ [ ] ▸  ·  y ─────────────────────────────
+  ∧＿∧ │  145.9M tokens  ·  855 turns  ·  89 active days
+ (◕‿◕)│  Highlights ── Monthly heatmap ── Rankings
+  Monthly activity
+  tokens by month
+      ███     ░░░
+  Jan Feb Mar … Dec
+  Less ·▪▩█ More  ·  Peak month Mar 48.2M
+ (≧◡≦) │  Pi-chan  73% of usage on glm-5.2.
 ```
 
 ### Features
 
+- **Pi-chan navigation** — two-row menu with icon tabs, per-view hints, and mascot accents in Wrapped AI
 - **Live upstream quota** — 5H/weekly bars from ZAI and OpenAI Codex using pi's own credentials
 - **Rate-limit windows** — captures provider HTTP headers on every response with live reset countdowns
-- **Full attribution** — breakdown by model, skill, plugin, tool, and project
+- **Full attribution** — breakdown by model, skill, **bundle**, plugin, tool (with glyphs), and project
+- **Multi-skill aware** — every skill and `@bundle` in a `/skills` chain counted separately (pairs with pi-multi-skill)
 - **Seven TUI views** — Overview, Models, Daily, Stats, Hourly, Agents, Wrapped AI
+- **Wrapped AI** — professional year-in-review layout with Pi-chan sidebar and data-driven footer caption
 - **Adaptive units** — USD for priced providers, tokens for token-priced providers (ZAI/GLM)
-- **Incremental cache** — session scan cached to `~/.pi/agent/usage-cache.json` for fast reopen
+- **Incremental cache** — session scan cached to `~/.pi/agent/usage-cache.json` (v4, multi-skill + bundle safe)
 - **Always-on widget** — optional compact spend line above the editor (`/usage-widget`)
 
 ### Commands
@@ -212,10 +220,12 @@ Full breakdown: model table with tok/s, plus Skills, Plugin usage (with contribu
 | Command | Description |
 |---------|-------------|
 | `/usage` | Open the interactive usage panel |
-| `/usage-models` · `/usage-daily` · `/usage-stats` · … | Jump directly to a specific view |
+| `/usage-models` · `/usage-daily` · `/usage-stats` · `/usage-wrapped` · … | Jump directly to a specific view |
 | `/usage-config` | Set 5H/weekly USD & token budgets |
 | `/usage-pricing` | Set manual per-model prices for token-priced providers |
 | `/usage-widget` | Toggle compact always-on spend widget |
+
+**Latest (v1.9.0):** Pi-chan two-row navigation · Wrapped AI report layout · monthly heatmap · Tools glyphs · bundle attribution · cache v4 with legacy turn normalization.
 
 ### Provider quota
 
@@ -231,23 +241,90 @@ Full breakdown: model table with tok/s, plus Skills, Plugin usage (with contribu
 
 ## ⚡ pi-multi-skill
 
-Pi's built-in `/skill:name` loads one skill at a time. This extension lets you **chain multiple skills** in a single slash command.
+Pi's built-in `/skill:name` loads one skill at a time. **pi-multi-skill** (v1.3.0) chains multiple skills in one command with bundles, load modes, BMAD auto-routing, conflict resolution, parallel dispatch, activation stats, and Claude Code-style orchestration.
+
+Full reference: [multi-skill/README.md](./multi-skill/README.md)
 
 ### Usage
 
 ```
 /skills frontend-design,motion-design Create an animated landing page
-/skills test-driven-development,systematic-debugging Fix the failing tests
-/skills                              → show help + list available skills
+/skills @bmad-planning --meta Buat PRD untuk fitur X
+/skills bmad-master /workflow-status
+/skills @bmad-planning --auto
+/skills @cc-feature --parallel Build API | Write tests
+/skills-stats                         → activation statistics
+/skills-last --meta                   → repeat last activation
+/skills-setup                         → bundle prerequisites + install guide
+/skills                              → show help + list skills & bundles
 ```
 
-### Features
+### Commands
 
-- **Comma-separated chaining** — `/skills skill1,skill2,skill3 [instructions]`
-- **Smart autocomplete** — shows all skills with descriptions; selecting one appends a comma for chaining
-- **Universal discovery** — finds skills from user, project, npm, and git sources via `pi.getCommands()`
-- **Legacy formats** — `/skills:name1,name2` and `/skill:name1+name2` also supported
-- **Inline instructions** — text after the skill list is passed to the agent alongside skill content
+| Command | Description |
+|---------|-------------|
+| `/skills` | Chain skills/bundles with load modes, passthrough, `--auto`, `--parallel` |
+| `/skills-stats` | Activation stats (modes, bundles, recent history) |
+| `/skills-last` | Repeat last `/skills` invocation (optional flag override) |
+| `/skills-setup` | Bundle readiness report + BMAD/Superpowers install hints |
+
+### What's new in v1.3.0
+
+| Feature | Description |
+|---------|-------------|
+| **`/skills-last`** | Replay last activation; override with `--meta` / `--lazy` / `--full` / `--parallel` |
+| **BMAD status pre-inject** | `<bmad_status>` block for `/workflow-status`, `--auto`, and `bmad-master` |
+| **Bundle attribution** | `bundles="@name"` on `<manually_attached_skills>` → tracked in pi-usage **Bundles** section |
+| **`/skills-setup`** | On-machine bundle coverage + install guide for BMAD/Superpowers/custom bundles |
+
+### What's new in v1.2.0
+
+| Category | Features |
+|----------|----------|
+| **Conflicts** | `conflicts_with` frontmatter — auto-skip conflicting skills with notification |
+| **Token budget** | Per-skill `token_budget` override within a bundle load mode |
+| **Parallel** | `<parallel_dispatch>` JSON template for `pi-subagents`; pipe-separated tasks |
+| **Stats** | `/skills-stats` + `~/.pi/agent/multi-skill-stats.json` activation tracking |
+| **Bundles** | YAML config (`skill-bundles.yaml`) alongside JSON |
+
+### v1.1.0 highlights
+
+| Category | Features |
+|----------|----------|
+| **Bundles** | `@bmad-planning`, `@bmad-solutioning`, `@bmad-build`, `@cc-feature`, `@debug` + custom JSON config |
+| **Load modes** | `--meta` (minimal tokens), `--lazy` (on-demand refs), `--full` (default) |
+| **Orchestration** | Smart ordering (process → planning → impl), deduplication, `<manually_attached_skills>` wrapper |
+| **BMAD** | `--auto` reads workflow status and loads phase-appropriate skills |
+| **Commands** | Passthrough: `/skills bmad-master /workflow-status` |
+| **Discovery** | Pi commands + settings paths + **Claude plugin cache** + Cursor skills |
+| **Session** | Bundle suggestions after user turns; `skill-index.json` rebuilt each session |
+| **Usage** | Multi-skill attribution — all skills counted in `pi-usage` `/usage-models` |
+
+### All features
+
+- **Parallel dispatch** — `--parallel Task A | Task B` with structured subagent template
+- **Conflict resolution** — `conflicts_with` frontmatter deduplication
+- **Activation stats** — `/skills-stats` tracks modes, bundles, recent history
+- **YAML bundles** — `skill-bundles.yaml` alongside JSON config
+- **Skill bundles** — `@name` expands to curated skill sets; merge with `~/.pi/agent/skill-bundles.json`
+- **Load modes** — control token cost per activation
+- **Smart ordering** — process skills first, then planning, then implementation
+- **Command passthrough** — embed `/workflow-status`, `/dev-story`, etc.
+- **BMAD `--auto`** — phase detection from `docs/bmm-workflow-status.yaml`
+- **Universal discovery** — finds Superpowers skills in Claude plugin cache even if not in pi `"skills"` paths
+- **Autocomplete** — skills and bundles with descriptions; comma-chaining support
+- **Legacy formats** — `/skills:name1,name2` and `/skill:name1+name2`
+- **Parallel hint** — `--parallel` with pipe-separated tasks; JSON template when `pi-subagents` installed
+- **pi-usage integration** — every skill and `@bundle` in a chain attributed separately in `/usage-models`
+
+---
+
+## 📋 Latest releases
+
+| Package | Version | Highlights |
+|---------|---------|------------|
+| `@zaganjade/pi-usage` | **1.9.0** | Pi-chan menu · Wrapped report · monthly heatmap · Tools glyphs · bundle breakdown · cache v4 |
+| `@zaganjade/pi-multi-skill` | **1.3.0** | `/skills-last` · `/skills-setup` · BMAD status inject · bundle attribution for usage |
 
 ---
 
@@ -260,8 +337,9 @@ pi-extension/
 ├── usage/                  → @zaganjade/pi-usage
 │   └── src/
 │       ├── index.ts        orchestrator — commands, events, scan + quota coordination
-│       ├── view.ts         TUI panel (UsageView, 7 views)
-│       ├── aggregate.ts    session scan, attribution, windowing
+│       ├── view.ts         TUI panel (UsageView, 7 views, Pi-chan menu)
+│       ├── mascot.ts       Pi-chan art, view icons, tool glyphs
+│       ├── aggregate.ts    session scan, attribution, multi-skill windowing
 │       ├── provider.ts     live quota fetch + rate-limit parsing
 │       ├── config.ts       ~/.pi/agent/usage.json
 │       ├── cache.ts        ~/.pi/agent/usage-cache.json
@@ -269,7 +347,23 @@ pi-extension/
 │       └── format.ts       token / currency / bar helpers
 └── multi-skill/            → @zaganjade/pi-multi-skill
     └── src/
-        └── index.ts        /skills command, autocomplete, input handler
+        ├── index.ts        /skills, /skills-stats, events, orchestration
+        ├── discover.ts     universal skill discovery
+        ├── bundles.ts      preset + user bundle loading (JSON/YAML)
+        ├── metadata.ts     frontmatter, priority sorting
+        ├── build.ts        message builder, load modes, parallel dispatch
+        ├── conflicts.ts    conflicts_with resolution
+        ├── subagents.ts    pi-subagents detection + dispatch template
+        ├── stats.ts        activation tracking
+        ├── yaml-bundles.ts YAML bundle parser
+        ├── bmad-auto.ts    BMAD phase auto-routing
+        ├── bmad-status.ts  BMAD workflow status pre-inject
+        ├── bundle-status.ts bundle readiness + /skills-setup report
+        ├── completions.ts  slash autocomplete for skills & commands
+        ├── parse-args.ts   flags & embedded commands
+        ├── registry.ts     skill-index.json
+        ├── suggestions.ts  context-aware hints
+        └── types.ts        shared types
 ```
 
 ### pi-usage data flow
@@ -358,12 +452,14 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-  CMD["/skills a,b,c instructions"]
-  DISC["discoverSkillsFromPi()\npi.getCommands()"]
-  READ["Read SKILL.md files"]
-  SEND["pi.sendUserMessage()\ncombined skill blocks"]
+  CMD["/skills @bundle --meta /cmd"]
+  PARSE["parse-args + bundles"]
+  DISC["discover.ts"]
+  ORDER["metadata sort"]
+  BUILD["build.ts\nmeta/lazy/full"]
+  SEND["sendUserMessage()\nmanually_attached_skills"]
 
-  CMD --> DISC --> READ --> SEND
+  CMD --> PARSE --> DISC --> ORDER --> BUILD --> SEND
 ```
 
 ### Extension API surface
@@ -372,12 +468,12 @@ Both packages are standard pi extensions — a default-export factory receiving 
 
 | API used | pi-usage | pi-multi-skill |
 |----------|----------|----------------|
-| `pi.registerCommand()` | `/usage`, `/usage-*`, `/usage-config`, … | `/skills` |
-| `pi.on("session_start")` | rebuild attribution maps | clear skill cache |
+| `pi.registerCommand()` | `/usage`, `/usage-*`, `/usage-config`, … | `/skills`, `/skills-stats`, `/skills-last`, `/skills-setup` |
+| `pi.on("session_start")` | rebuild attribution maps | clear cache + skill index |
 | `pi.on("after_provider_response")` | capture rate-limit headers | — |
-| `pi.on("model_select")` / `turn_end` | refresh spend widget | — |
+| `pi.on("model_select")` / `turn_end` | refresh spend widget | skill bundle suggestions |
 | `pi.on("input")` | — | legacy `/skills:` / `/skill:+` formats |
-| `pi.getCommands()` / `getAllTools()` | tool/plugin attribution | skill discovery |
+| `pi.getCommands()` / `loadSkills()` | tool/plugin attribution | skill discovery (via discover.ts) |
 | `pi.sendUserMessage()` | — | inject combined skills |
 | `pi.ui.custom()` / `setWidget()` | panel + always-on widget | — |
 

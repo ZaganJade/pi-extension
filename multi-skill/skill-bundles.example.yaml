@@ -1,0 +1,9 @@
+bundles:
+  my-team-planning:
+    description: Custom team planning workflow
+    skills:
+      - bmad-master
+      - analyst
+      - pm
+    order: process-first
+    default_mode: meta

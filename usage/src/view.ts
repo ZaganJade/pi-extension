@@ -56,28 +56,21 @@ import {
 	shortenPath,
 	sparkline,
 } from "./format.ts";
+import {
+	mascotPose,
+	mascotQuip,
+	RAINBOW,
+	renderMascot,
+	renderWrappedMascot,
+	toolGlyph,
+	wrappedMascotCaption,
+	VIEW_ORDER,
+	VIEW_TABS,
+	type ViewKey,
+} from "./mascot.ts";
 import type { ProviderQuota } from "./provider.ts";
 
-/** Selectable top-level views (Tokscale-style menu + Wrapped AI). */
-export type ViewKey =
-	| "overview"
-	| "models"
-	| "daily"
-	| "stats"
-	| "hourly"
-	| "agents"
-	| "wrapped";
-
-/** Ordered list of views for tab/arrow navigation. */
-const VIEW_ORDER: ViewKey[] = [
-	"overview",
-	"models",
-	"daily",
-	"stats",
-	"hourly",
-	"agents",
-	"wrapped",
-];
+export type { ViewKey } from "./mascot.ts";
 
 /** Sort field for the Models table. */
 type SortKey = "value" | "name";
@@ -420,7 +413,9 @@ export class UsageView {
 
 		lines.push(theme.fg("borderMuted", "─".repeat(w)));
 		lines.push(this.titleLineRaw(w));
-		lines.push(this.menuLine(w));
+		for (const menuLine of this.menuLines(w)) {
+			lines.push(menuLine);
+		}
 
 		if (this.state.error) {
 			lines.push("");
@@ -524,7 +519,7 @@ export class UsageView {
 		const total = unit === "tokens" ? bucketTokens(win.total) : win.total.cost;
 		this.appendSection(lines, "Top models", win.byModel, total, w, 5, undefined, unit);
 		lines.push(
-			`  ${theme.fg("dim", "→ Tab for views · 2 Models · 3 Daily · 5 Hourly · 7 Wrapped AI")}`,
+			`  ${theme.fg("dim", "→ Tab or 1-7 to explore · ✦7 opens Wrapped AI")}`,
 		);
 	}
 
@@ -652,10 +647,20 @@ export class UsageView {
 		const total = unit === "tokens" ? bucketTokens(win.total) : win.total.cost;
 		this.appendModelTable(lines, win, total, w, unit);
 		this.appendSection(lines, "Skills", win.bySkill, total, w, 8, undefined, unit);
+		this.appendSection(
+			lines,
+			"Bundles",
+			win.byBundle,
+			total,
+			w,
+			8,
+			(k) => k,
+			unit,
+		);
 		// Plugin usage: ranked plugins with the skills/tools that drove each, plus
 		// the “core” remainder (turns that used only builtin tools and no skill).
 		this.appendPluginUsageSection(lines, win, total, w, unit);
-		this.appendSection(lines, "Tools", win.byTool, total, w, 8, undefined, unit);
+		this.appendToolsSection(lines, win.byTool, total, w, 8, unit);
 		this.appendSection(
 			lines,
 			"Projects",
@@ -1017,49 +1022,118 @@ export class UsageView {
 		const year = this.state.wrappedYear;
 		const stats = wrappedStats(report, year);
 		const years = availableYears(report);
+		const pose = mascotPose("wrapped", stats);
+		const mascot = renderWrappedMascot(pose, theme);
 
-		lines.push(this.wrappedYearLine(years));
+		lines.push(this.wrappedBannerLine(years, w));
 		lines.push("");
 
 		if (!stats) {
-			lines.push(`  ${theme.fg("dim", `— no activity in ${year} —`)}`);
-			if (years.length > 0) {
-				lines.push(
-					`  ${theme.fg("dim", `Try [ ] to switch year (${years.map(String).join(", ")})`)}`,
+			this.appendMascotBlock(lines, mascot, w, (content) => {
+				content.push(`  ${theme.fg("muted", "No activity recorded")}`);
+				content.push(
+					`  ${theme.fg("dim", `Nothing to summarize for ${year}.`)}`,
 				);
-			}
+				if (years.length > 0) {
+					content.push(
+						`  ${theme.fg("dim", `Available: ${years.map(String).join(", ")}  ·  [ ] to switch`)}`,
+					);
+				}
+			});
 			lines.push("");
 			return;
 		}
 
-		this.appendWrappedHero(lines, stats, w);
+		this.appendMascotBlock(lines, mascot, w, (content) => {
+			this.appendWrappedHero(content, stats, w);
+		});
 		lines.push("");
-		this.appendWrappedMonthly(lines, stats, w);
-		lines.push("");
+		lines.push(this.wrappedSectionHeader("Highlights", w));
 		this.appendWrappedHighlights(lines, stats, w);
 		lines.push("");
+		lines.push(this.wrappedSectionHeader("Monthly activity", w));
+		this.appendWrappedMonthly(lines, stats, w);
+		lines.push("");
+		lines.push(this.wrappedSectionHeader("Rankings", w));
 		this.appendWrappedTops(lines, stats, w);
 		lines.push("");
-		const insight = this.wrappedInsight(stats);
-		if (insight) {
-			lines.push(`  ${theme.fg("accent", insight)}`);
+		const caption = wrappedMascotCaption(stats, year);
+		lines.push(this.wrappedInsightBox(caption, pose, w));
+		lines.push("");
+	}
+
+	/** Hairline section label — matches Stats/Daily report rhythm. */
+	private wrappedSectionHeader(title: string, width: number): string {
+		const { theme } = this.deps;
+		const label = `  ${theme.fg("muted", title)} `;
+		const ruleW = Math.max(4, width - visibleWidth(label) - 2);
+		return `${label}${theme.fg("borderMuted", "─".repeat(ruleW))}`;
+	}
+
+	/** Pi-chan footer card — character accent, professional tone. */
+	private wrappedInsightBox(
+		caption: string,
+		pose: ReturnType<typeof mascotPose>,
+		width: number,
+	): string {
+		const { theme } = this.deps;
+		const face = renderWrappedMascot(pose, theme)[1] ?? "";
+		const tag = theme.fg("accent", "Pi-chan");
+		const body = theme.fg("text", truncateToWidth(caption, Math.max(20, width - 24)));
+		const inner = `${tag}  ${body}`;
+		const pad = Math.max(0, width - visibleWidth(face) - visibleWidth(inner) - 6);
+		return `  ${face}  ${theme.fg("borderMuted", "│")} ${inner}${" ".repeat(pad)}`;
+	}
+
+	/** Side-by-side mascot + content when the terminal is wide enough. */
+	private appendMascotBlock(
+		lines: string[],
+		mascot: string[],
+		width: number,
+		renderContent: (content: string[]) => void,
+	): void {
+		const { theme } = this.deps;
+		const content: string[] = [];
+		renderContent(content);
+		const mascotW = 14;
+		const gap = 2;
+		const sideBySide = width >= 72 && mascot.length > 0;
+
+		if (!sideBySide) {
+			for (const m of mascot) lines.push(m);
 			lines.push("");
+			lines.push(...content);
+			return;
+		}
+
+		const rule = theme.fg("borderMuted", "│");
+		const rows = Math.max(mascot.length, content.length);
+		for (let i = 0; i < rows; i++) {
+			const left = (mascot[i] ?? "").padEnd(mascotW);
+			const right = content[i] ?? "";
+			if (right) {
+				lines.push(`${left}${rule}${" ".repeat(gap)}${right}`);
+			} else if (left.trim()) {
+				lines.push(left);
+			}
 		}
 	}
 
-	private wrappedYearLine(years: number[]): string {
+	private wrappedBannerLine(years: number[], width: number): string {
 		const { theme } = this.deps;
 		const year = this.state.wrappedYear;
-		const title = theme.fg("accent", theme.bold(" Wrapped AI "));
+		const title = theme.fg("accent", theme.bold(" Wrapped "));
 		const yearBadge = theme.bg(
 			"selectedBg",
-			theme.fg("accent", theme.bold(` ${year} `)),
+			theme.fg("text", theme.bold(` ${year} `)),
 		);
 		const nav =
 			years.length > 1
-				? theme.fg("dim", "  [ ] year  ·  y next")
-				: theme.fg("dim", "  all years in data");
-		return `  ${title}${yearBadge}${nav}`;
+				? theme.fg("dim", "  ◂ [ ] ▸  ·  y")
+				: theme.fg("dim", "  single year");
+		const left = `  ${title}${yearBadge}${nav}`;
+		const pad = Math.max(0, width - visibleWidth(left) - 2);
+		return `${left}${theme.fg("borderMuted", "─".repeat(Math.max(2, pad)))}`;
 	}
 
 	private appendWrappedHero(lines: string[], stats: WrappedStats, w: number): void {
@@ -1069,16 +1143,20 @@ export class UsageView {
 				? formatTokens(stats.totalTokens)
 				: formatCost(stats.totalCost);
 		const unit =
-			stats.metric === "tokens" ? "tokens processed" : "estimated spend";
+			stats.metric === "tokens" ? "tokens" : "estimated spend";
 		lines.push(
 			`  ${theme.fg("text", theme.bold(headline))} ${theme.fg("muted", unit)}`,
 		);
+		const kpis = [
+			`${formatInt(stats.totalTurns)} turns`,
+			`${stats.activeDays} active days`,
+			`${stats.modelCount} models`,
+			`${stats.providerCount} providers`,
+		];
 		lines.push(
-			`  ${theme.fg("dim", `${formatInt(stats.totalTurns)} turns`)}` +
-				`   ${theme.fg("dim", "·")}   ${theme.fg("dim", `${stats.activeDays} active days`)}` +
-				`   ${theme.fg("dim", "·")}   ${theme.fg("dim", `${stats.modelCount} models`)}` +
-				`   ${theme.fg("dim", "·")}   ${theme.fg("dim", `${stats.providerCount} providers`)}`,
+			`  ${kpis.map((k) => theme.fg("dim", k)).join(theme.fg("borderMuted", "  ·  "))}`,
 		);
+		lines.push("");
 
 		const pairs: Array<[string, string]> = [
 			["Favorite model", stats.favoriteModel ?? "—"],
@@ -1088,7 +1166,10 @@ export class UsageView {
 				stats.busiestDay ? formatDayLabel(stats.busiestDay.dateKey) : "—",
 			],
 			["Peak hour", stats.peakHour != null ? formatHour(stats.peakHour) : "—"],
-			["Longest streak", `${stats.longestStreak} day${stats.longestStreak === 1 ? "" : "s"}`],
+			[
+				"Longest streak",
+				`${stats.longestStreak} day${stats.longestStreak === 1 ? "" : "s"}`,
+			],
 			[
 				"Avg / active day",
 				stats.metric === "tokens"
@@ -1100,99 +1181,184 @@ export class UsageView {
 	}
 
 	private appendWrappedMonthly(lines: string[], stats: WrappedStats, w: number): void {
-		const { theme } = this.deps;
-		const max = Math.max(...stats.monthlyTokens, 1);
-		const months = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
-		const barW = Math.max(1, Math.min(3, Math.floor((w - 40) / 12)));
-		const parts: string[] = [];
-		for (let i = 0; i < 12; i++) {
-			const v = stats.monthlyTokens[i];
-			const ratio = v / max;
-			const filled = v > 0 ? Math.max(1, Math.round(ratio * barW)) : 0;
-			const bar =
-				filled > 0
-					? theme.fg("accent", "▮".repeat(filled))
-					: theme.fg("borderMuted", "·");
-			parts.push(`${theme.fg("dim", months[i])}${bar}`);
+		if (w < 54) {
+			this.appendWrappedMonthlyRows(lines, stats, w);
+			return;
 		}
-		lines.push(`  ${theme.fg("muted", "Monthly")}  ${parts.join(" ")}`);
-		const activeMonths = stats.monthlyTokens.filter((v) => v > 0).length;
-		lines.push(
-			`  ${theme.fg("dim", `${activeMonths} active month${activeMonths === 1 ? "" : "s"} in ${stats.year}`)}`,
+		this.appendWrappedMonthlyHeatmap(lines, stats, w);
+	}
+
+	/**
+	 * Claude Code / Stats-style vertical month columns: graded blocks, month
+	 * labels, Less→More legend, and a peak-month callout.
+	 */
+	private appendWrappedMonthlyHeatmap(
+		lines: string[],
+		stats: WrappedStats,
+		width: number,
+	): void {
+		const { theme } = this.deps;
+		const values = stats.monthlyTokens;
+		const max = Math.max(...values, 1);
+		const colW = width >= 68 ? 3 : 2;
+		const gap = colW === 3 ? " " : "";
+		const barH = width >= 68 ? 5 : 4;
+		const block = "█".repeat(colW);
+		const empty = "·".repeat(colW);
+
+		const unitLabel = "tokens by month";
+		lines.push(`  ${theme.fg("dim", unitLabel)}`);
+
+		const levels = values.map((v) => this.heatmapLevel(v / max));
+		const filledRows = values.map((v) =>
+			v > 0 ? Math.max(1, Math.round((v / max) * barH)) : 0,
 		);
+
+		for (let row = 0; row < barH; row++) {
+			let line = "  ";
+			for (let m = 0; m < 12; m++) {
+				const rowFromBottom = barH - 1 - row;
+				if (filledRows[m] > 0 && rowFromBottom < filledRows[m]) {
+					line += theme.fg(this.heatmapColor(levels[m]), block);
+				} else {
+					line += theme.fg("borderMuted", empty);
+				}
+				if (m < 11) line += gap;
+			}
+			lines.push(line);
+		}
+
+		let labelLine = "  ";
+		for (let m = 0; m < 12; m++) {
+			const lab =
+				colW >= 3
+					? monthLabel(m + 1).slice(0, 3)
+					: monthLabel(m + 1).slice(0, 1);
+			labelLine += theme.fg("dim", lab.padEnd(colW));
+			if (m < 11) labelLine += gap;
+		}
+		lines.push(labelLine);
+
+		let legend = `  ${theme.fg("dim", "Less ")}`;
+		legend += theme.fg("borderMuted", empty);
+		for (let l = 1; l < 5; l++) {
+			legend += theme.fg(this.heatmapColor(l), block);
+		}
+		legend += theme.fg("dim", " More");
+		lines.push(legend);
+
+		const activeMonths = values.filter((v) => v > 0).length;
+		let peakIdx = 0;
+		let peakVal = 0;
+		for (let i = 0; i < 12; i++) {
+			if (values[i] > peakVal) {
+				peakVal = values[i];
+				peakIdx = i;
+			}
+		}
+		if (peakVal > 0) {
+			lines.push(
+				`  ${theme.fg("muted", "Peak month")}  ${theme.fg("text", monthLabel(peakIdx + 1))}` +
+					`  ${theme.fg("dim", formatTokens(peakVal))}` +
+					`  ${theme.fg("borderMuted", "·")}  ${theme.fg("dim", `${activeMonths} active month${activeMonths === 1 ? "" : "s"}`)}`,
+			);
+		} else {
+			lines.push(
+				`  ${theme.fg("dim", `${activeMonths} active month${activeMonths === 1 ? "" : "s"}`)}`,
+			);
+		}
+	}
+
+	/** Narrow-terminal fallback: horizontal share bars (same geometry as Rankings). */
+	private appendWrappedMonthlyRows(
+		lines: string[],
+		stats: WrappedStats,
+		width: number,
+	): void {
+		const { theme } = this.deps;
+		const values = stats.monthlyTokens;
+		const max = Math.max(...values, 1);
+		const total = values.reduce((s, v) => s + v, 0);
+		const labelW = 5;
+		const barW = Math.max(6, Math.min(14, width - labelW - 16));
+		const valueW = 8;
+
+		lines.push(`  ${theme.fg("dim", "tokens by month")}`);
+		for (let m = 0; m < 12; m++) {
+			const v = values[m];
+			const name = monthLabel(m + 1).slice(0, 3).padEnd(labelW);
+			if (v <= 0) {
+				lines.push(
+					`  ${theme.fg("dim", name)} ${theme.fg("borderMuted", "·".repeat(barW))} ${theme.fg("dim", "—".padStart(valueW))}`,
+				);
+				continue;
+			}
+			const ratio = v / max;
+			const filled = Math.max(1, Math.round(ratio * barW));
+			const level = this.heatmapLevel(ratio);
+			const bar =
+				theme.fg(this.heatmapColor(level), "█".repeat(filled)) +
+				theme.fg("borderMuted", "░".repeat(barW - filled));
+			const pct =
+				total > 0 ? `${Math.round((v / total) * 100)}%`.padStart(4) : "   —";
+			lines.push(
+				`  ${theme.fg("text", name)} ${theme.fg("muted", pct)} ${bar} ${theme.fg("dim", formatTokens(v).padStart(valueW))}`,
+			);
+		}
 	}
 
 	private appendWrappedHighlights(lines: string[], stats: WrappedStats, w: number): void {
 		const { theme } = this.deps;
 		const topProj = stats.topProject
-			? truncateToWidth(shortenPath(stats.topProject, this.deps.home), Math.max(20, w - 24))
+			? truncateToWidth(shortenPath(stats.topProject, this.deps.home), Math.max(20, w - 28))
 			: "—";
-		const chips = [
-			`models ${stats.modelCount}`,
-			`providers ${stats.providerCount}`,
-			`projects ${stats.projectCount}`,
+		const pairs: Array<[string, string]> = [
+			["Models used", `${stats.modelCount}`],
+			["Providers", `${stats.providerCount}`],
+			["Projects", `${stats.projectCount}`],
+			["Top project", topProj],
 		];
-		lines.push(
-			`  ${theme.fg("muted", "Scope")}   ${chips.map((c) => theme.fg("text", c)).join(theme.fg("dim", "  ·  "))}`,
-		);
-		lines.push(`  ${theme.fg("muted", "Top project")}  ${theme.fg("accent", topProj)}`);
+		this.appendStatGrid(lines, pairs, w);
 	}
 
 	private appendWrappedTops(lines: string[], stats: WrappedStats, w: number): void {
 		const { theme } = this.deps;
-		const labelW = Math.max(16, Math.min(28, Math.floor(w * 0.35)));
+		const labelW = Math.max(16, Math.min(28, Math.floor(w * 0.38)));
+		const barW = Math.max(6, Math.min(16, w - labelW - 22));
 		const pctW = 5;
 
-		lines.push(`  ${theme.fg("muted", "Top models")}`);
+		lines.push(`  ${theme.fg("muted", "Models")}`);
 		if (stats.topModels.length === 0) {
 			lines.push(`  ${theme.fg("dim", "—")}`);
 		}
 		for (const m of stats.topModels) {
 			const name = truncateToWidth(m.name, labelW).padEnd(labelW);
 			const pct = `${Math.round(m.pct)}%`.padStart(pctW);
+			const filled = Math.max(m.pct > 0 ? 1 : 0, Math.round((m.pct / 100) * barW));
+			const bar =
+				theme.fg("accent", "█".repeat(filled)) +
+				theme.fg("borderMuted", "░".repeat(barW - filled));
 			lines.push(
-				`  ${theme.fg("text", name)} ${theme.fg("muted", pct)} ${theme.fg("dim", formatTokens(m.tokens))}`,
+				`  ${theme.fg("text", name)} ${theme.fg("muted", pct)} ${bar} ${theme.fg("dim", formatTokens(m.tokens))}`,
 			);
 		}
 
 		lines.push("");
-		lines.push(`  ${theme.fg("muted", "Top providers")}`);
+		lines.push(`  ${theme.fg("muted", "Providers")}`);
 		if (stats.topProviders.length === 0) {
 			lines.push(`  ${theme.fg("dim", "—")}`);
 		}
 		for (const p of stats.topProviders) {
 			const name = truncateToWidth(p.name, labelW).padEnd(labelW);
 			const pct = `${Math.round(p.pct)}%`.padStart(pctW);
+			const filled = Math.max(p.pct > 0 ? 1 : 0, Math.round((p.pct / 100) * barW));
+			const bar =
+				theme.fg("success", "█".repeat(filled)) +
+				theme.fg("borderMuted", "░".repeat(barW - filled));
 			lines.push(
-				`  ${theme.fg("text", name)} ${theme.fg("muted", pct)} ${theme.fg("dim", formatTokens(p.tokens))}`,
+				`  ${theme.fg("text", name)} ${theme.fg("muted", pct)} ${bar} ${theme.fg("dim", formatTokens(p.tokens))}`,
 			);
 		}
-	}
-
-	private wrappedInsight(stats: WrappedStats): string | null {
-		if (stats.peakHour != null && stats.peakHour >= 22) {
-			return `You're a night owl — peak activity around ${formatHour(stats.peakHour)}`;
-		}
-		if (stats.peakHour != null && stats.peakHour < 7) {
-			return `Early bird — most active around ${formatHour(stats.peakHour)}`;
-		}
-		if (stats.longestStreak >= 7) {
-			return `${stats.longestStreak}-day streak — consistency wins`;
-		}
-		if (stats.topModels.length >= 2) {
-			const top = stats.topModels[0];
-			const second = stats.topModels[1];
-			if (top.pct >= 60) {
-				return `${Math.round(top.pct)}% of your year ran on ${top.name}`;
-			}
-			if (second.pct >= 20) {
-				return `Split between ${top.name} and ${second.name} — versatile stack`;
-			}
-		}
-		if (stats.metric === "usd" && stats.totalCost > 0) {
-			return `Estimated ${formatCost(stats.totalCost)} across ${stats.activeDays} active days in ${stats.year}`;
-		}
-		return `${formatTokens(stats.totalTokens)} tokens across ${stats.activeDays} days — your ${stats.year} in pi`;
 	}
 
 	// ------------------------------------------------------------------- Stats
@@ -1309,26 +1475,37 @@ export class UsageView {
 	 * GitHub-style contribution heatmap: a month-label header row, then 7 day
 	 * rows (Sun..Sat) of graded square cells, then a Less→More legend.
 	 */
+	private heatmapColor(level: number): ThemeColor {
+		switch (level) {
+			case 4:
+				return "accent";
+			case 3:
+				return "success";
+			case 2:
+				return "warning";
+			case 1:
+				return "muted";
+			default:
+				return "borderMuted";
+		}
+	}
+
+	/** Map a 0–1 usage ratio to heatmap intensity (matches Stats view). */
+	private heatmapLevel(ratio: number): number {
+		if (ratio <= 0) return 0;
+		if (ratio >= 0.75) return 4;
+		if (ratio >= 0.5) return 3;
+		if (ratio >= 0.25) return 2;
+		return 1;
+	}
+
 	private appendContribGraph(
 		lines: string[],
 		graph: ContribGraph,
 		width: number,
 	): void {
 		const { theme } = this.deps;
-		const colorFor = (level: number): ThemeColor => {
-			switch (level) {
-				case 4:
-					return "accent";
-				case 3:
-					return "success";
-				case 2:
-					return "warning";
-				case 1:
-					return "muted";
-				default:
-					return "borderMuted";
-			}
-		};
+		const colorFor = (level: number) => this.heatmapColor(level);
 		// Active days are solid 2-wide blocks so consecutive activity fuses into
 		// chunky, seamless squares (the tokscale / Claude Code look). Inactive
 		// days stay a faint dot on the dark background — never a filled block —
@@ -1416,27 +1593,48 @@ export class UsageView {
 		lines.push("");
 	}
 
-	private menuLine(width: number): string {
+	private menuLines(width: number): string[] {
 		const { theme } = this.deps;
 		const compact = width < 100;
-		const labels: Array<[ViewKey, string]> = [
-			["overview", compact ? "Over" : "Overview"],
-			["models", compact ? "Mod" : "Models"],
-			["daily", compact ? "Day" : "Daily"],
-			["stats", compact ? "Stat" : "Stats"],
-			["hourly", compact ? "Hr" : "Hourly"],
-			["agents", compact ? "Agnt" : "Agents"],
-			["wrapped", compact ? "Wrap" : "Wrapped"],
-		];
-		const parts = labels.map(([key, label], i) => {
-			const text = ` ${i + 1} ${label} `;
-			return key === this.state.view
-				? theme.bg("selectedBg", theme.fg("accent", theme.bold(text)))
-				: theme.fg("dim", text);
-		});
-		const menu = parts.join(theme.fg("borderMuted", "│"));
-		const pad = Math.max(0, width - visibleWidth(menu) - 2);
-		return `  ${menu}${" ".repeat(pad)}`;
+		const tabParts: string[] = [];
+
+		for (let i = 0; i < VIEW_ORDER.length; i++) {
+			const key = VIEW_ORDER[i];
+			const tab = VIEW_TABS[key];
+			const label = compact ? tab.short : tab.label;
+			const icon = tab.icon;
+			const num = `${i + 1}`;
+			const text = ` ${icon}${num} ${label} `;
+			const rendered =
+				key === this.state.view
+					? theme.bg(
+							"selectedBg",
+							theme.fg(tab.color, theme.bold(text)),
+						)
+					: theme.fg("dim", text);
+			tabParts.push(rendered);
+		}
+
+		const rail = theme.fg("borderMuted", "╭─ views ");
+		const tabs = tabParts.join(theme.fg("borderMuted", " │ "));
+		const close = theme.fg("borderMuted", " ─╮");
+		const row1Pad = Math.max(0, width - visibleWidth(rail) - visibleWidth(tabs) - visibleWidth(close) - 2);
+		const row1 = `${rail}${tabs}${" ".repeat(row1Pad)}${close}`;
+
+		const pose = mascotPose(this.state.view);
+		const miniMascot = renderMascot(pose, theme)[1] ?? "";
+		const quip = mascotQuip(
+			this.state.view,
+			this.state.view === "wrapped" && this.state.report
+				? wrappedStats(this.state.report, this.state.wrappedYear)
+				: null,
+		);
+		const hintLeft = `${theme.fg("success", "Pi-chan")} ${theme.fg("muted", quip)}`;
+		const hintRight = theme.fg("dim", "Tab · ←→ · 1-7 jump");
+		const hintPad = Math.max(2, width - visibleWidth(miniMascot) - visibleWidth(hintLeft) - visibleWidth(hintRight) - 4);
+		const row2 = `  ${miniMascot}  ${hintLeft}${" ".repeat(hintPad)}${hintRight}`;
+
+		return [row1, row2];
 	}
 
 	private titleLineRaw(width: number): string {
@@ -1810,6 +2008,63 @@ export class UsageView {
 		let line = `  ${titleCell} ${pctCell} ${barSpace} ${valueCell}`;
 		if (extraLabel) line += ` ${theme.fg("dim", extraLabel)}`;
 		return line;
+	}
+
+	private appendToolsSection(
+		lines: string[],
+		map: Map<string, Bucket>,
+		total: number,
+		width: number,
+		limit: number,
+		unit: "usd" | "tokens",
+	): void {
+		const { theme } = this.deps;
+		const bucketValue = (b: Bucket) =>
+			unit === "tokens" ? bucketTokens(b) : b.cost;
+		const fmt = (n: number) =>
+			unit === "tokens" ? formatTokens(n) : formatCost(n);
+		const rows = ranked(map, bucketValue);
+		const unitLabel = unit === "tokens" ? "tokens" : "cost";
+
+		const labelW = Math.max(16, Math.min(36, Math.floor((width - 30) * 0.6)));
+		const barW = Math.max(6, Math.min(20, width - labelW - 26));
+		lines.push(
+			`  ${theme.fg("warning", "⚙")} ${theme.fg("dim", "Pi-chan tracked these tool calls")}`,
+		);
+		lines.push(this.tableHeader("Tools", labelW, barW, unitLabel));
+
+		if (rows.length === 0) {
+			lines.push(`  ${theme.fg("dim", "— none in this window —")}`);
+			lines.push("");
+			return;
+		}
+
+		const shown = rows.slice(0, limit);
+		for (let i = 0; i < shown.length; i++) {
+			const [key, bucket] = shown[i];
+			const value = bucketValue(bucket);
+			const glyph = toolGlyph(key);
+			const rawName = truncateToWidth(key, labelW - 2);
+			const name = `${glyph} ${rawName}`.padEnd(labelW);
+			const pct = percent(value, total);
+			const ratio = total > 0 ? value / total : 0;
+			const filled = Math.max(ratio > 0 ? 1 : 0, Math.round(ratio * barW));
+			const color = RAINBOW[i % RAINBOW.length];
+			const barStr =
+				theme.fg(color, "█".repeat(filled)) +
+				theme.fg("borderMuted", "░".repeat(barW - filled));
+			const pctStr = pct.padStart(4);
+			lines.push(
+				`  ${theme.fg("text", name)} ${theme.fg("muted", pctStr)} ${barStr} ${theme.fg(color, fmt(value))}`,
+			);
+		}
+
+		const rest = rows.length - shown.length;
+		if (rest > 0) {
+			lines.push(`  ${theme.fg("dim", `… +${rest} more tools`)}`);
+		}
+		lines.push(`  ${theme.fg("dim", "glyph · tool type hint")}`);
+		lines.push("");
 	}
 
 	private appendSection(

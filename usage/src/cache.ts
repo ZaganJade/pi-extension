@@ -18,7 +18,7 @@ import type { ModelPrice } from "./config.ts";
 import type { TurnEntry } from "./aggregate.ts";
 
 /** Bump when the cached entry shape changes, to invalidate stale caches. */
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 4;
 
 export interface CachedSession {
 	mtimeMs: number;

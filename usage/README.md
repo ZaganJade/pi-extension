@@ -9,28 +9,22 @@ and **weekly** quota bars. Mirrors the layout and wording of Claude Code's
 
 ### Overview (`/usage`)
 
-Seven views via `Tab` or `1`–`7`. The default Overview shows quota bars, headline stats, active provider, top consumer, a trend sparkline, and compact top models.
+Seven views via `Tab` or `1`–`7`. The navigation bar is a **two-row menu**: colored icon tabs on top, plus **Pi-chan** (the panel mascot) with a contextual hint for the active view. Overview shows quota bars, headline stats, active provider, top consumer, a trend sparkline, and compact top models.
 
 ```
 ────────────────────────────────────────────────────────────────
  Usage ────────────────────────────────  5H │ DAY │ WEEK │ ALL
 
-   1 Overview │ 2 Models │ 3 Daily │ 4 Stats │ 5 Hourly │ 6 Agents │ 7 Wrapped
+╭─ views  ◈1 Overview │ ◎2 Models │ … │ ✦7 Wrapped  ─────────╮
+  (◕‿◕)  Pi-chan  Quota bars & headline stats…    Tab · 1-7 jump
 
   Showing: last 24 hours              last activity 2m ago  ·  254 sessions
 
   5-hour quota     ████░░░░░░░░░░░░  12% used / 145.9M · 88% left · resets 4h 58m
   Weekly quota     ██████░░░░░░░░░░  55% used / 176.7M · 45% left · resets 11h 49m
   live from provider
-  max plan · upstream quota
-  Web searches  0/4000
 
   ↑51.8M  ↓3.7M  ⚡97.7M  145.9M tokens   ·  855 turns
-
-  Active provider
-  zai / glm-5.2  api.z.ai  key ✓
-  Rate limits (live, from last response)
-  tokens/min       ████████░░░░  12.4K/16K  resets in 42s
 
   Top consumer
   73% of usage came from model glm-5.2
@@ -39,27 +33,68 @@ Seven views via `Tab` or `1`–`7`. The default Overview shows quota bars, headl
 
   Top models                        %   tokens
   glm-5.2                        73% ███████████████ 106.5M
-  glm-5.1                        11% ██░░░░░░░░░░░░░  16.1M
-  gpt-5.5                         8% █░░░░░░░░░░░░░░  11.2M
 
-  → Tab for views · 2 Models · 3 Daily · 5 Hourly · 7 Wrapped AI
+  → Tab or 1-7 to explore · ✦7 opens Wrapped AI
 ```
 
 ### Models view (`/usage-models`)
 
-Full attribution breakdown — model table with tok/s, Skills, Plugin usage (with contributing skills/tools), Tools, and Projects.
+Full attribution breakdown — model table with tok/s, Skills, **Bundles** (`@debug`, …), Plugin usage (with contributing skills/tools), **Tools** (per-tool glyphs and share bars), and Projects.
 
 ```
   Models                            %   tokens   tok/s
   glm-5.2                        73% ███████████████ 106.5M   142/s
-  glm-5.1                        11% ██░░░░░░░░░░░░░  16.1M    98/s
   tok/s · est. avg output speed
+
+  Skills                            %   tokens
+  systematic-debugging             18% ███░░░░░░░░░░░░  25.4M
+
+  Bundles                           %   tokens
+  @debug                           22% ████░░░░░░░░░░░  31.1M
 
   Plugin usage                      %   tokens  via
   frontend-design                12% ██░░░░░░ 720k   frontend-design
-  bmad                           12% ██░░░░░░ 720k   bmad-master, analyst
-  pi-subagents                    7% █░░░░░░░ 450k   subagent
   (core / no plugin)             59% ██████░░ 3.6M   builtin tools only
+
+  ⚙ Pi-chan tracked these tool calls
+  Tools                             %   tokens
+  ↳ read                         34% ██████░░░░░░░░░  48.2M
+  $ bash                         22% ████░░░░░░░░░░░  31.1M
+  ✎ write                        18% ███░░░░░░░░░░░░  25.4M
+  glyph · tool type hint
+```
+
+### Wrapped AI (`/usage-wrapped`)
+
+Year-in-review report with a **professional layout** and **Pi-chan** as a sidebar accent. Pose and footer caption react to your stats (streak, peak hour, top model). Cycle years with `[` / `]` or `y`.
+
+```
+  Wrapped  2025  ◂ [ ] ▸  ·  y ─────────────────────────────
+
+  ∧＿∧ │  145.9M tokens  tokens
+ (◕‿◕)│  855 turns  ·  89 active days  ·  4 models  ·  2 providers
+ /つ ✦│  Favorite model    glm-5.2       Top provider    zai
+  ～～ │  Longest streak     12 days      Peak hour       11 PM
+
+  Highlights ────────────────────────────────────────────────
+  Models used    4              Providers    2
+  Projects       8              Top project  my-app
+
+  Monthly activity ──────────────────────────────────────────
+  tokens by month
+      ▄▄▄     ▄▄▄
+      ███ ░░░ ███ ░░░ …
+  Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
+  Less ·▪▩▣█ More
+  Peak month  Mar  48.2M  ·  6 active months
+
+  Rankings ──────────────────────────────────────────────────
+  Models
+  glm-5.2                        73% ███████████████ 106.5M
+  Providers
+  zai                            81% ██████████████░ 118.2M
+
+ (≧◡≦) │  Pi-chan  73% of usage on glm-5.2.
 ```
 
 ## Views
@@ -70,12 +105,27 @@ Wrapped AI), switchable inside `/usage` and openable directly via shortcuts:
 | View | Shows |
 |------|-------|
 | **Overview** | Quota bars, headline stats, active-provider quota, top consumer, a 30-day trend sparkline, and the top models. |
-| **Models** | Detailed model table (↑input ↓output ⚡cache + turns), plus Skills, Plugin usage, Tools, and Projects breakdowns. |
+| **Models** | Detailed model table with tok/s, plus **Skills**, **Bundles** (`@name` from pi-multi-skill), Plugin usage, **Tools** (glyph + share bar), and Projects breakdowns. |
 | **Daily** | Per-day rows with an activity bar plus exact cost, tokens, uptime (active span), and the day's top model; topped with all-time totals (uptime / tokens / cost). Sortable by date or usage. |
 | **Stats** | GitHub-style contribution graph with month labels, an interactive time-range selector (all / 7d / 30d via `a`/`w`/`m`), and a two-column summary (total, turns, active days, favorite model, current/longest streak, busiest day, peak hour, averages) plus a fun usage comparison. |
 | **Hourly** | Time-of-day breakdown (0–23h, all days combined): activity bars, tokens, turns, and top model per hour — spot your peak coding windows. |
 | **Agents** | Usage by provider/backend (e.g. `zai`, `openai-codex`, `9Router`): share bars, tokens, project count, and top model per provider. Sortable by usage or name. |
-| **Wrapped AI** | Compact year-in-review: headline totals, monthly mini-chart, top models/providers, streaks, peak hour, top project, and a one-line insight. Cycle years with `[` / `]` or `y`. |
+| **Wrapped AI** | Year-in-review report: headline totals, Highlights grid, **Stats-style monthly heatmap**, model/provider rankings with share bars, and a Pi-chan footer insight. Sidebar mascot pose reacts to streaks and peak hours. Cycle years with `[` / `]` or `y`. |
+
+## UI — Pi-chan & navigation
+
+The panel uses a lightweight TUI mascot, **Pi-chan**, to make navigation feel friendlier without sacrificing readability:
+
+| Element | Behavior |
+|---------|----------|
+| **View tabs** | Each of the seven views has an icon (`◈` Overview, `◎` Models, `✦` Wrapped, …) and a distinct accent color when selected. |
+| **Hint row** | Pi-chan's face plus a one-line description of the active view (e.g. "Year in review — [ ] or y to change year" on Wrapped). |
+| **Wrapped sidebar** | On wide terminals, Pi-chan sits beside the hero stats with a vertical rule; pose changes for celebrate / night-owl / curious / empty-year moods. |
+| **Tools glyphs** | Common tool names show a type hint prefix (`↳` read, `$` bash, `✎` write, `⌕` grep, …) with per-row share bars. |
+| **Wrapped sections** | Hairline section headers (`Highlights`, `Monthly activity`, `Rankings`) match the Stats/Daily report rhythm. |
+| **Monthly activity** | Stats-style vertical heatmap (12 month columns, graded `█` blocks, `Less → More` legend, peak-month callout). Narrow terminals fall back to horizontal share bars. |
+
+Pi-chan copy is informational, not decorative — footer captions summarize your standout stat in plain language.
 
 ## Commands
 
@@ -167,7 +217,9 @@ histories). Results are then cached **per session file** to
 opens — even after restarting pi — only re-parse sessions that actually changed,
 so the panel comes up in well under a second instead of re-reading everything.
 The cache is rebuilt automatically if you change `modelPrices` (costs are baked
-in at parse time). Delete the file to force a full re-scan.
+in at parse time) or when the cache schema version bumps (currently **v4**, which
+adds multi-skill `skills[]` and `bundles[]` on each turn). Legacy entries are normalized on load.
+Delete `~/.pi/agent/usage-cache.json` to force a full re-scan.
 
 ## How it works
 
@@ -177,9 +229,12 @@ walks the entries, and attributes every assistant turn to:
 
 - **model** — from `message.model`
 - **project** — from the session's working directory
-- **skill** — detected via `parseSkillBlock()` on the preceding user message
+- **skill** — detected via `parseSkillBlocks()` on the preceding user message (multi-skill aware — every `<skill name="…">` in a `/skills` activation is counted separately)
+- **bundle** — detected via `bundles="…"` on `<manually_attached_skills>` (e.g. `@bmad-planning`, `@debug`)
 - **plugins / tools** — from the tool calls in the assistant message, mapped to
   their owning package via `pi.getAllTools()` / `pi.getCommands()`
+
+When using [**pi-multi-skill**](../multi-skill/README.md), a single `/skills @debug,frontend-design` turn attributes usage to both `systematic-debugging` and `frontend-design` in the Skills section, and `@debug` in the **Bundles** section when a preset bundle was used.
 
 Like Claude Code, these are **independent characteristics** of your usage, not a
 disjoint partition — a single turn can contribute to several buckets, so
@@ -233,8 +288,9 @@ rate-limit headers still work and are shown.
 | File | Purpose |
 |------|---------|
 | `index.ts` | Entry point — registers commands (incl. `/usage-models`, `/usage-daily`, `/usage-stats`), orchestrates scan + widget |
-| `view.ts` | The interactive TUI panel component (`UsageView`) with Overview / Models / Daily / Stats / Hourly / Agents / Wrapped AI views |
-| `aggregate.ts` | Session scanning + windowing + attribution; daily aggregation, contribution graph, and lifetime stats |
+| `view.ts` | The interactive TUI panel (`UsageView`) — Pi-chan menu, Overview / Models / … / Wrapped AI views |
+| `mascot.ts` | Pi-chan ASCII art, view tab icons, tool glyphs, Wrapped captions |
+| `aggregate.ts` | Session scanning + windowing + attribution; multi-skill `skills[]`; legacy turn normalization |
 | `provider.ts` | Active-provider detection + rate-limit parsing + live quota fetch |
 | `config.ts` | Load/save `~/.pi/agent/usage.json` (merges bundled default prices) |
 | `cache.ts` | Persistent incremental scan cache (`~/.pi/agent/usage-cache.json`) |
@@ -288,3 +344,19 @@ pi list
 > **Note:** `npm install` only downloads the package to disk. Pi does not auto-scan global or local `node_modules` — you must register the package with `pi install` so it appears in `"packages"`.
 
 No build step; pi loads TypeScript directly via jiti.
+
+## Changelog
+
+### v1.9.0
+
+- **Pi-chan navigation** — two-row menu with icon tabs and per-view hints
+- **Wrapped AI** — report layout (Highlights / Monthly activity / Rankings), sidebar mascot, footer caption
+- **Monthly activity** — vertical heatmap aligned with Stats view (`Less → More` legend, peak-month callout)
+- **Tools section** — per-tool glyphs and colored share bars
+- **Bundle attribution** — `Bundles` breakdown for `@bundle` activations from pi-multi-skill
+- **Multi-skill skills[]** — every skill in a chain attributed separately
+- **Cache v4** — `skills[]`, `bundles[]`, `tools[]` on each turn; legacy entries normalized on load
+
+### v1.8.0
+
+- Seven views including Wrapped AI, Agents, Hourly; live ZAI/Codex quota; incremental scan cache

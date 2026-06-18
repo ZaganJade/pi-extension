@@ -1,7 +1,7 @@
 {
 	"name": "@zaganjade/pi-multi-skill",
-	"version": "1.0.1",
-	"description": "Load multiple skills at once via /skills command. Supports comma-separated skill names with autocomplete and instructions.",
+	"version": "1.3.0",
+	"description": "Chain multiple skills via /skills — bundles (JSON/YAML), load modes, BMAD --auto, /skills-last, /skills-setup, conflict resolution, parallel dispatch, activation stats, bundle attribution for pi-usage.",
 	"type": "module",
 	"keywords": [
 		"pi-package"
@@ -24,7 +24,9 @@
 	"files": [
 		"src/",
 		"README.md",
-		"LICENSE"
+		"LICENSE",
+		"skill-bundles.example.json",
+		"skill-bundles.example.yaml"
 	],
 	"pi": {
 		"extensions": [
