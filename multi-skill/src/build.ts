@@ -7,6 +7,26 @@ import { buildParallelDispatchBlock } from "./subagents.ts";
 
 const SUBAGENT_STOP = "<SUBAGENT-STOP>";
 const MULTI_SKILL_LOCATION = "pi-multi-skill";
+
+/**
+ * Closing tag for INNER per-skill blocks inside a multi-skill payload.
+ *
+ * MUST NOT be `</skill>`. Pi's display parser (`parseSkillBlock`) uses a
+ * non-greedy regex that cannot distinguish a nested `</skill>` from the outer
+ * envelope's own closing tag. With nested `</skill>`, the parser split at the
+ * last inner `</skill>` and dumped every trailing section (`<user_query>`,
+ * `</manually_attached_skills>`, the outer `</skill>`) into the rendered
+ * `userMessage` — appearing as raw tags in the chat. Using a non-colliding
+ * closer keeps the outer envelope parseable so those sections stay inside the
+ * collapsed content.
+ *
+ * The opening tag stays `<skill name="…" location="…">` so pi-usage can still
+ * attribute each skill individually via `/<skill\s+name="([^"]+)"/g`; pi-usage
+ * only reads openings, so a non-colliding closer is safe. `</skill-block>` is
+ * chosen because it contains neither `</skill>` nor `<skill ` (with a space),
+ * so it cannot match either parser's regex.
+ */
+const INNER_SKILL_CLOSE = "</skill-block>";
 const SKILL_CHECK_MARKERS = [
 	"If you think there is even a 1% chance a skill might apply",
 	"Invoke relevant or requested skills BEFORE any response",
@@ -34,6 +54,21 @@ export function formatPiSkillBlock(
 	content: string,
 ): string {
 	return `<skill name="${escapeXml(name)}" location="${escapeXml(location)}">\n${content}\n</skill>`;
+}
+
+/**
+ * Wrap a single skill's content for inclusion INSIDE a multi-skill payload.
+ *
+ * Uses a non-colliding closer (see INNER_SKILL_CLOSE) so the outer native skill
+ * block parses cleanly with no tag leakage. The opening stays
+ * `<skill name="…">` to preserve pi-usage per-skill attribution.
+ */
+function formatInnerSkillItem(
+	name: string,
+	location: string,
+	content: string,
+): string {
+	return `<skill name="${escapeXml(name)}" location="${escapeXml(location)}">\n${content}\n${INNER_SKILL_CLOSE}`;
 }
 
 export function isPiSkillBlock(text: string): boolean {
@@ -163,7 +198,7 @@ function renderSkillBlock(
 			content = formatFullBody(skill, body);
 	}
 
-	return formatPiSkillBlock(skill.name, skill.filePath, content);
+	return formatInnerSkillItem(skill.name, skill.filePath, content);
 }
 
 function buildAgentPayload(
@@ -219,12 +254,11 @@ function buildAgentPayload(
 		);
 	}
 
-	if (options.instructions) {
-		parts.push("");
-		parts.push("<user_query>");
-		parts.push(options.instructions);
-		parts.push("</user_query>");
-	}
+	// NOTE: options.instructions is intentionally NOT added inside the payload.
+	// It is appended after the outer </skill> envelope in buildCombinedMessage
+	// so Pi renders it as the visible user message (the `userMessage` tail of
+	// parseSkillBlock) while the skill content stays collapsed. Wrapping it in
+	// <user_query> tags here would leak those tags into the rendered message.
 
 	if (notFound.length > 0) {
 		parts.push("");
@@ -300,6 +334,15 @@ export function buildCombinedMessage(
 		);
 	} else {
 		message = expandedBlocks[0];
+	}
+
+	// Surface the user's free-text instructions as Pi's `userMessage` tail
+	// (the optional text after `</skill>\n\n`). Pi renders the skill block
+	// collapsed as `[skill] a, b (ctrl+o to expand)` and this tail as a normal
+	// visible user message below it — which is the desired display. Plain text
+	// only: wrapping tags here would render literally.
+	if (options.instructions && expandedBlocks.length > 0) {
+		message = `${message}\n\n${options.instructions}`;
 	}
 
 	return {

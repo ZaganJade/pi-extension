@@ -207,16 +207,36 @@ Pi collapses user messages only when the **entire** message matches its native s
 <skill name="skill-a, skill-b" location="pi-multi-skill">
   <manually_attached_skills count="2" bundles="@debug">
     …priority rules…
-    <skill name="skill-a" location="/path/to/SKILL.md">…</skill>
-    <skill name="skill-b" location="/path/to/SKILL.md">…</skill>
+    <skill name="skill-a" location="/path/to/SKILL.md">…</skill-block>
+    <skill name="skill-b" location="/path/to/SKILL.md">…</skill-block>
     <user_query>Your instructions here</user_query>
   </manually_attached_skills>
 </skill>
+
+Your instructions here
 ```
 
 - **1 skill, no extras** → single native block → `[skill] skill-name`
 - **2+ skills** (or bundles/instructions) → outer native block hides all inner content → `[skill] a, b, c` (Ctrl+O to expand)
+- The user's free-text instructions are appended AFTER `</skill>` as Pi's
+  `userMessage` tail, so they render as a normal visible message below the
+  collapsed header: `[skill] a, b (ctrl+o to expand)` + `your instructions`.
 - Inner `<manually_attached_skills bundles="…">` is preserved for **pi-usage** bundle attribution
+
+> **Why inner blocks close with `</skill-block>` and instructions live outside the envelope?**
+> Two constraints shaped this. First, Pi's display parser matches the outer
+> envelope with a non-greedy regex and cannot tell a nested `</skill>` apart
+> from the envelope's own closing tag — with nested `</skill>`, any trailing
+> section caused the parser to split at the last inner `</skill>` and **leak**
+> `<user_query>…`, `</manually_attached_skills>`, and the outer `</skill>` into
+> the rendered user message as raw tags. Inner blocks therefore open with
+> `<skill name="…">` (kept so **pi-usage** still attributes each skill via
+> `/<skill\s+name="([^"]+)"/g`) but close with the non-colliding `</skill-block>`,
+> which neither parser's regex can match. Second, so the user's typed
+> instructions stay visible (not hidden inside the collapsed block) while the
+> skill *content* collapses, instructions are placed after `</skill>\n\n` as
+> plain text — exactly Pi's native `userMessage` tail. Covered by
+> `node --test test/parse-leak.test.mjs`.
 
 ### Session hints
 
