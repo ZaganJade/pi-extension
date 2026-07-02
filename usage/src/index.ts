@@ -36,6 +36,7 @@ import {
 	parseRateLimits,
 	type RateLimitWindow,
 } from "./provider.ts";
+import { isReportCacheFresh } from "./freshness.ts";
 import { UsageView, type ViewKey } from "./view.ts";
 
 const HOUR = 60 * 60 * 1000;
@@ -50,6 +51,10 @@ export default function usageExtension(pi: ExtensionAPI) {
 		skillToPlugin: new Map(),
 	};
 	let cache: { report: Report; at: number } | null = null;
+	// Epoch-ms of the most recent assistant turn seen this run. A new turn
+	// invalidates the in-memory report cache (see isReportCacheFresh) so the
+	// trend graph reflects current usage instead of a stale snapshot.
+	let lastTurnAt = 0;
 	// Persistent incremental scan cache (loaded lazily on first scan), so only
 	// new/changed session files are re-parsed across opens and restarts.
 	let scanCache: ScanCache | null = null;
@@ -89,6 +94,9 @@ export default function usageExtension(pi: ExtensionAPI) {
 	pi.on("session_start", async (_e, ctx) => captureCtx(ctx));
 	pi.on("turn_end", async (_e, ctx) => {
 		captureCtx(ctx);
+		// A turn just completed and has been persisted to the session file — mark
+		// it so the next /usage open rescans instead of serving a stale cache.
+		lastTurnAt = Date.now();
 		refreshWidget();
 	});
 
@@ -172,7 +180,7 @@ export default function usageExtension(pi: ExtensionAPI) {
 			void runProviderQuota(ctx, view);
 
 			const cached = cache;
-			const fresh = cached != null && Date.now() - cached.at < CACHE_TTL;
+			const fresh = isReportCacheFresh(cached, Date.now(), lastTurnAt, CACHE_TTL);
 			if (fresh && cached) view.setReport(cached.report);
 			else void runScan(ctx, view, false);
 
@@ -185,7 +193,7 @@ export default function usageExtension(pi: ExtensionAPI) {
 		view: UsageView,
 		force: boolean,
 	): Promise<void> {
-		if (!force && cache && Date.now() - cache.at < CACHE_TTL) {
+		if (!force && isReportCacheFresh(cache, Date.now(), lastTurnAt, CACHE_TTL) && cache) {
 			view.setReport(cache.report);
 			return;
 		}

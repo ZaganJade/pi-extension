@@ -2171,7 +2171,16 @@ export class UsageView {
 				theme.fg("borderMuted", "░".repeat(barW - filled));
 			const nm = truncateToWidth(name, labelW).padEnd(labelW);
 			const valueStr = fmt(value).padEnd(valueW);
-			const detailStr = detail ? ` ${theme.fg("dim", detail)}` : "";
+			// The "via" detail trails the fixed name/%/bar/value columns plus one
+			// separating space (2-indent + labelW + 1 + 4 + 1 + barW + 1 + valueW + 1
+			// = labelW + barW + valueW + 10). Tool/skill names can be long (e.g.
+			// "firecrawl_firecrawl_scrape"), so truncate to the remaining width to
+			// keep the row within the terminal and avoid a TUI width-overflow crash.
+			const viaW = width - (labelW + barW + valueW) - 10;
+			const detailStr =
+				detail && viaW > 0
+					? ` ${theme.fg("dim", truncateToWidth(detail, viaW))}`
+					: "";
 			lines.push(
 				`  ${theme.fg("text", nm)} ${theme.fg("muted", pct.padStart(4))} ${barStr} ${theme.fg("dim", valueStr)}${detailStr}`,
 			);

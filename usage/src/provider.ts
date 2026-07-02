@@ -20,6 +20,7 @@
  */
 import { type Api, getEnvApiKey, type Model } from "@earendil-works/pi-ai";
 import { AuthStorage } from "@earendil-works/pi-coding-agent";
+import { classifyZaiLimits, type ZaiQuotaLimit } from "./zai.ts";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -369,18 +370,6 @@ function errMsg(e: unknown): string {
 	return e instanceof Error ? e.message : String(e);
 }
 
-/** A single quota window in ZAI's /quota/limit response. */
-interface ZaiQuotaLimit {
-	type?: string;
-	unit?: number;
-	number?: number;
-	usage?: number;
-	currentValue?: number;
-	remaining?: number;
-	percentage?: number;
-	nextResetTime?: number;
-}
-
 /** Shape of ZAI's /api/monitor/usage/quota/limit response. */
 interface ZaiQuotaPayload {
 	code?: number;
@@ -436,38 +425,7 @@ async function fetchZaiPlanQuota(
 		}
 	}
 	if (!payload?.data?.limits) return undefined;
-
-	const limits = payload.data.limits;
-	const findTok = (unit: number, number: number) =>
-		limits.find(
-			(l) =>
-				l.type === "TOKENS_LIMIT" && l.unit === unit && l.number === number,
-		);
-	const web = limits.find((l) => l.type === "TIME_LIMIT");
-
-	const session = findTok(3, 5);
-	const weekly = findTok(6, 1);
-	if (!session && !weekly && !web) return undefined;
-
-	return {
-		plan: payload.data.level ?? "",
-		session5h:
-			session?.percentage != null && session.nextResetTime != null
-				? { usedPct: session.percentage, resetMs: session.nextResetTime }
-				: undefined,
-		weekly:
-			weekly?.percentage != null && weekly.nextResetTime != null
-				? { usedPct: weekly.percentage, resetMs: weekly.nextResetTime }
-				: undefined,
-		webSearches:
-			web && web.usage != null && web.remaining != null
-				? {
-						used: web.currentValue ?? 0,
-						limit: web.usage,
-						resetMs: web.nextResetTime ?? 0,
-					}
-				: undefined,
-	};
+	return classifyZaiLimits(payload.data.limits, payload.data.level ?? "");
 }
 
 /**
